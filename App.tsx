@@ -6,6 +6,7 @@ import { LogoIcon } from './components/icons/LogoIcon';
 import { investigateTarget } from './services/geminiService';
 import type { OSINTResult, GroundingChunk } from './types';
 import { FilterControls, FilterOption } from './components/FilterControls';
+import { ErrorDisplay } from './components/ErrorDisplay';
 
 const App: React.FC = () => {
   const [query, setQuery] = useState<string>('');
@@ -14,8 +15,9 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [investigationPath, setInvestigationPath] = useState<string[]>([]);
 
-  const handleSearch = async (searchTerm: string) => {
+  const handleSearch = async (searchTerm: string, isNewInvestigation: boolean = true) => {
     if (!searchTerm.trim()) {
       setError('Будь ласка, введіть ціль для розслідування.');
       return;
@@ -25,6 +27,13 @@ const App: React.FC = () => {
     setResults(null);
     setSources([]);
     setActiveFilter('all');
+    setQuery(searchTerm);
+
+    if (isNewInvestigation) {
+        setInvestigationPath([searchTerm]);
+    } else if (!investigationPath.includes(searchTerm)) {
+        setInvestigationPath(prev => [...prev, searchTerm]);
+    }
 
     try {
       const response = await investigateTarget(searchTerm);
@@ -32,16 +41,31 @@ const App: React.FC = () => {
         setResults(response.data);
         setSources(response.sources);
       } else {
-        setError('Не вдалося отримати дійсну відповідь від служби розслідувань.');
+        setError('Не вдалося отримати дійсну відповідь від служби розслідувань. Спробуйте ще раз.');
       }
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? `Сталася помилка: ${err.message}` : 'Сталася невідома помилка.');
+      const errorMessage = err instanceof Error ? err.message : 'Сталася невідома помилка.';
+  
+      let userFriendlyMessage = `Сталася непередбачувана помилка. Якщо проблема не зникає, спробуйте оновити сторінку. Деталі: ${errorMessage}`;
+  
+      if (errorMessage.includes("malformed response") || errorMessage.includes("No valid JSON")) {
+          userFriendlyMessage = "ШІ повернув відповідь у неочікуваному форматі. Це може бути тимчасовою проблемою. Будь ласка, спробуйте виконати запит ще раз або трохи змінити його.";
+      } else if (errorMessage.includes("Failed to communicate")) {
+          userFriendlyMessage = "Не вдалося зв'язатися зі службою розслідувань. Перевірте ваше інтернет-з'єднання та спробуйте знову.";
+      }
+      
+      setError(userFriendlyMessage);
     } finally {
       setIsLoading(false);
     }
   };
   
+  const handleDeepSearch = (deepSearchTerm: string) => {
+    if (investigationPath[investigationPath.length - 1] === deepSearchTerm) return;
+    handleSearch(deepSearchTerm, false);
+  };
+
   const generateFilters = (data: OSINTResult): FilterOption[] => {
     const filters: FilterOption[] = [];
     if (data.social_profiles?.length) filters.push({ key: 'social_profiles', label: 'Соціальні мережі', count: data.social_profiles.length });
@@ -71,13 +95,22 @@ const App: React.FC = () => {
         </header>
 
         <main>
-          <SearchInput onSearch={handleSearch} isLoading={isLoading} />
-          
-          {error && (
-            <div className="mt-8 text-center glass-card p-4 rounded-lg border-red-500/50">
-              <p className="text-red-400">{error}</p>
+          {error && <ErrorDisplay message={error} onClose={() => setError(null)} />}
+
+          {investigationPath.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mb-4 animate-fade-in">
+                {investigationPath.map((item, index) => (
+                    <React.Fragment key={index}>
+                        {index > 0 && <span className="text-cyan-400 text-lg">/</span>}
+                        <div className={`px-3 py-1 rounded-md text-sm transition-colors ${index === investigationPath.length - 1 ? 'bg-cyan-400 text-black font-bold' : 'bg-cyan-500/10 text-cyan-300'}`}>
+                            <span className="font-bold mr-1">{index === 0 ? 'Ціль:' : 'Лід:'}</span>
+                            <span>{item}</span>
+                        </div>
+                    </React.Fragment>
+                ))}
             </div>
           )}
+          <SearchInput onSearch={(newQuery) => handleSearch(newQuery, true)} isLoading={isLoading} query={query} setQuery={setQuery} />
 
           {isLoading && <LoadingIndicator />}
 
@@ -95,7 +128,7 @@ const App: React.FC = () => {
                 activeFilter={activeFilter}
                 onFilterChange={setActiveFilter}
               />
-              <ResultsDisplay results={results} sources={sources} activeFilter={activeFilter} />
+              <ResultsDisplay results={results} sources={sources} activeFilter={activeFilter} onDeepSearch={handleDeepSearch} />
             </div>
           )}
         </main>

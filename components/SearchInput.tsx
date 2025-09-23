@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SearchIcon } from './icons/SearchIcon';
 
 interface SearchInputProps {
   onSearch: (query: string) => void;
   isLoading: boolean;
+  query: string;
+  setQuery: (query: string) => void;
 }
 
-export const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading }) => {
-  const [query, setQuery] = useState('');
+export const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, query, setQuery }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +27,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading })
       />
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || !query.trim()}
         className="flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2 px-6 rounded-md transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed transform hover:scale-105"
       >
         <SearchIcon className="w-5 h-5" />
