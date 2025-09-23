@@ -9,18 +9,17 @@ export interface FilterOption {
 interface FilterControlsProps {
   filters: FilterOption[];
   activeFilter: string;
-  onFilterChange: (filterKey: string) => void;
 }
 
-export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeFilter, onFilterChange }) => {
+export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeFilter }) => {
   if (filters.length === 0) {
     return null;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 glass-card rounded-lg mb-4">
-      <button
-        onClick={() => onFilterChange('all')}
+      <a
+        href="#all"
         className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors duration-200 ${
           activeFilter === 'all'
             ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20'
@@ -28,11 +27,11 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeF
         }`}
       >
         Всі
-      </button>
+      </a>
       {filters.map((filter) => (
-        <button
+        <a
           key={filter.key}
-          onClick={() => onFilterChange(filter.key)}
+          href={`#${filter.key}`}
           className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors duration-200 flex items-center gap-2 ${
             activeFilter === filter.key
               ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20'
@@ -43,7 +42,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeF
           <span className={`text-xs rounded-full px-2 py-0.5 ${
              activeFilter === filter.key ? 'bg-black/20 text-white' : 'bg-black/30 text-cyan-200'
           }`}>{filter.count}</span>
-        </button>
+        </a>
       ))}
     </div>
   );

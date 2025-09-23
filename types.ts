@@ -28,6 +28,12 @@ export interface LeakedDocument {
     snippet: string;
 }
 
+export interface RegistryMention {
+    registry_name: string;
+    record_details: string;
+    url?: string;
+}
+
 export interface PhoneInfo {
     number: string;
     associated_names: string[];
@@ -43,6 +49,7 @@ export interface OSINTResult {
   data_breaches: DataBreach[];
   forum_mentions: ForumMention[];
   leaked_documents: LeakedDocument[];
+  registry_mentions: RegistryMention[];
   phone_info: PhoneInfo[];
 }
 
