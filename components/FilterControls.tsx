@@ -20,10 +20,10 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeF
     <div className="flex flex-wrap items-center gap-2 p-3 glass-card rounded-lg mb-4">
       <a
         href="#all"
-        className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors duration-200 ${
+        className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all duration-300 ease-in-out ${
           activeFilter === 'all'
-            ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20'
-            : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20'
+            ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 transform scale-105'
+            : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transform hover:scale-105'
         }`}
       >
         Всі
@@ -32,10 +32,10 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeF
         <a
           key={filter.key}
           href={`#${filter.key}`}
-          className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors duration-200 flex items-center gap-2 ${
+          className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all duration-300 ease-in-out flex items-center gap-2 ${
             activeFilter === filter.key
-              ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20'
-              : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20'
+              ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 transform scale-105'
+              : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transform hover:scale-105'
           }`}
         >
           <span>{filter.label}</span>

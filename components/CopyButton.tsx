@@ -27,7 +27,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ textToCopy }) => {
       {isCopied ? (
         <CheckIcon className="w-5 h-5 text-green-400" />
       ) : (
-        <ClipboardIcon className="w-5 h-5 text-cyan-300/70" />
+        <ClipboardIcon className="w-5 h-5 text-cyan-300/70 transition-transform duration-200 ease-in-out group-hover:scale-125" />
       )}
     </button>
   );

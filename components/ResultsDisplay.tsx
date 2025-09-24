@@ -41,7 +41,7 @@ const ActionButtons: React.FC<{ text: string; onSearch: (text: string, isNew: bo
             aria-label={`Deep search ${text}`}
             title={`Дослідити ${text}`}
         >
-            <SearchPlusIcon className="w-5 h-5 text-cyan-300/70" />
+            <SearchPlusIcon className="w-5 h-5 text-cyan-300/70 transition-transform duration-200 ease-in-out group-hover:scale-125" />
         </button>
     </div>
 );
@@ -54,7 +54,7 @@ const ActionableItem: React.FC<{text: string; url?: string; onSearch: (text: str
     );
 
     return (
-        <div className="flex items-center justify-between p-3 bg-black/20 rounded-md">
+        <div className="group flex items-center justify-between p-3 bg-black/20 rounded-md transition-colors hover:bg-black/30">
             {content}
             <ActionButtons text={text} onSearch={onSearch} className="ml-2" />
         </div>
@@ -130,7 +130,7 @@ const SmartSourceText: React.FC<{ text: string, sources: GroundingChunk[] }> = (
 
 const AssociatedEntityCard: React.FC<{ entity: AssociatedEntity, onSearch: (query: string, isNew: boolean) => void, allSources: GroundingChunk[] }> = ({ entity, onSearch, allSources }) => {
     const renderItem = (item: string, type: 'email' | 'phone' | 'domain') => (
-        <div key={item} className="flex items-center gap-2 p-2 bg-black/20 rounded-md">
+        <div key={item} className="group flex items-center gap-2 p-2 bg-black/20 rounded-md transition-colors hover:bg-black/30">
             {type === 'email' && <MailIcon className="w-4 h-4 text-cyan-300/70 flex-shrink-0" />}
             {type === 'phone' && <PhoneIcon className="w-4 h-4 text-cyan-300/70 flex-shrink-0" />}
             {type === 'domain' && <GlobeIcon className="w-4 h-4 text-cyan-300/70 flex-shrink-0" />}
@@ -140,7 +140,7 @@ const AssociatedEntityCard: React.FC<{ entity: AssociatedEntity, onSearch: (quer
     );
 
     const renderProfile = (profile: SocialProfile) => (
-        <div key={profile.url} className="flex items-start gap-3 p-2 bg-black/20 rounded-md">
+        <div key={profile.url} className="group flex items-start gap-3 p-2 bg-black/20 rounded-md transition-colors hover:bg-black/30">
             {getPlatformIcon(profile.platform)}
             <div className="flex-grow min-w-0">
                 <a href={profile.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -306,7 +306,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                             <ContextualSearch items={results.social_profiles} dataExtractor={(item: SocialProfile) => item.username} categoryLabel="соц. профілів" onSearch={onSearch} />
                         )}
                         {results.social_profiles.map((profile, index) => (
-                            <div key={index} className="p-3 bg-black/20 rounded-md">
+                            <div key={index} className="group p-3 bg-black/20 rounded-md transition-colors hover:bg-black/30">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-start flex-grow min-w-0">
                                         {getPlatformIcon(profile.platform)}
@@ -386,7 +386,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                             <ContextualSearch items={results.data_breaches} dataExtractor={(item: DataBreach) => item.name} categoryLabel="витоків даних" onSearch={onSearch} />
                         )}
                         {results.data_breaches.map((breach, index) => (
-                            <div key={index} className="p-3 bg-black/20 rounded-md">
+                            <div key={index} className="group p-3 bg-black/20 rounded-md transition-colors hover:bg-black/30">
                                 <div className="flex justify-between items-center">
                                     <p className="font-bold text-cyan-200 truncate">{breach.name} <span className="text-xs font-normal text-cyan-100/60 ml-2">{breach.date}</span></p>
                                     <ActionButtons text={breach.name} onSearch={onSearch} className="ml-2" />
@@ -425,13 +425,15 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         )}
                         {results.registry_mentions.map((mention, index) => {
                             const Wrapper = mention.url ? 'a' : 'div';
+                            const wrapperProps = mention.url 
+                                ? { href: mention.url, target: "_blank", rel: "noopener noreferrer" } 
+                                : {};
+
                             return (
                                 <Wrapper 
-                                    key={index} 
-                                    href={mention.url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors"
+                                    key={index}
+                                    {...wrapperProps} 
+                                    className="group block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors"
                                 >
                                     <div className="flex justify-between items-center">
                                         <p className="font-bold text-cyan-200 truncate">{mention.registry_name}</p>
@@ -466,7 +468,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                                         <p className="text-sm text-cyan-100/70 mb-2 pl-1">Пов'язані імена:</p>
                                         <div className="flex flex-wrap gap-2">
                                             {info.associated_names.map((name, i) => (
-                                                <div key={i} className="flex items-center gap-1 text-sm bg-black/30 rounded-full px-3 py-1">
+                                                <div key={i} className="group flex items-center gap-1 text-sm bg-black/30 rounded-full px-3 py-1 transition-colors hover:bg-black/40">
                                                     <span className="truncate max-w-40">{name}</span>
                                                     <ActionButtons text={name} onSearch={onSearch} />
                                                 </div>
@@ -494,7 +496,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                             <ContextualSearch items={results.forum_mentions} dataExtractor={(item: ForumMention) => item.forum_name} categoryLabel="згадок на форумах" onSearch={onSearch} />
                         )}
                         {results.forum_mentions.map((mention, index) => (
-                            <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
+                            <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="group block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
                                 <div className="flex justify-between items-center">
                                     <p className="font-bold text-cyan-200 truncate">{mention.forum_name}</p>
                                     <ActionButtons text={mention.forum_name} onSearch={onSearch} className="ml-2" />
@@ -520,7 +522,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                             <ContextualSearch items={results.leaked_documents} dataExtractor={(item: LeakedDocument) => item.source} categoryLabel="злитих документів" onSearch={onSearch} />
                         )}
                         {results.leaked_documents.map((doc, index) => (
-                            <a href={doc.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" key={index} className="group block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
                                 <div className="flex justify-between items-center">
                                     <p className="font-bold text-cyan-200 truncate">{doc.source}</p>
                                     <ActionButtons text={doc.source} onSearch={onSearch} className="ml-2" />
