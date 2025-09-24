@@ -17,6 +17,7 @@ export async function investigateTarget(target: string): Promise<{ data: OSINTRe
         Проведіть ретельний пошук у всіх доступних вам джерелах: соціальні мережі, витоки даних, форуми, реєстри, злиті документи, кеш пошукових систем. Зберіть всю можливу інформацію за категоріями, вказаними в JSON-структурі нижче.
         - Для 'Data Breaches': надайте вичерпний список ВСІХ типів скомпрометованих даних. Наприклад: ["email", "password (hashed)", "IP address"].
         - Для 'Forum Mentions': надайте максимально інформативний та контекстуально багатий уривок з повідомлення.
+        - Для 'Social Profiles': якщо інформація є загальнодоступною, включіть біографію користувача ('bio') та кількість підписників ('followers').
 
         КРОК 2: АНАЛІЗ ТА СИНТЕЗ (НАЙВАЖЛИВІШИЙ)
         Після збору даних, проаналізуйте їх на наявність зв'язків. Ваша мета — ідентифікувати ймовірних осіб або "цифрові персони".
@@ -39,11 +40,11 @@ export async function investigateTarget(target: string): Promise<{ data: OSINTRe
               "name": "string",
               "emails": ["string"],
               "phone_numbers": ["string"],
-              "social_profiles": [{ "platform": "string", "username": "string", "url": "string" }],
+              "social_profiles": [{ "platform": "string", "username": "string", "url": "string", "followers": "number", "bio": "string" }],
               "domains": ["string"],
               "sources": ["string"]
           }],
-          "social_profiles": [{ "platform": "string", "username": "string", "url": "string" }],
+          "social_profiles": [{ "platform": "string", "username": "string", "url": "string", "followers": "number", "bio": "string" }],
           "emails": ["string"],
           "associated_domains": ["string"],
           "data_breaches": [{ "name": "string", "compromised_data": ["string"], "date": "string" }],

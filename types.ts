@@ -2,6 +2,8 @@ export interface SocialProfile {
   platform: string;
   url: string;
   username: string;
+  followers?: number;
+  bio?: string;
 }
 
 export interface WebMention {
@@ -68,4 +70,13 @@ export interface GroundingChunk {
         uri: string;
         title: string;
     }
+}
+
+export interface HistoryEntry {
+  id: string; // Unique ID, using the root target string
+  timestamp: number;
+  target: string; // The root target of the investigation
+  investigationPath: string[];
+  results: OSINTResult;
+  sources: GroundingChunk[];
 }

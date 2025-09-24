@@ -91,11 +91,11 @@ const CollapsibleCard: React.FC<{ title: string; icon: React.ReactNode; children
 
 const getPlatformIcon = (platform: string) => {
     const lowerPlatform = platform.toLowerCase();
-    const iconClass = "w-8 h-8 mr-3 text-cyan-200";
+    const iconClass = "w-8 h-8 mr-3 text-cyan-200 flex-shrink-0";
     if (lowerPlatform.includes('twitter') || lowerPlatform.includes('x.com')) return <TwitterIcon className={iconClass} />;
     if (lowerPlatform.includes('linkedin')) return <LinkedInIcon className={iconClass} />;
     if (lowerPlatform.includes('instagram')) return <InstagramIcon className={iconClass} />;
-    return <UserIcon className="w-6 h-6 mr-3 text-cyan-400" />;
+    return <UserIcon className="w-6 h-6 mr-3 text-cyan-400 flex-shrink-0" />;
 }
 
 const SmartSourceText: React.FC<{ text: string, sources: GroundingChunk[] }> = ({ text, sources }) => {
@@ -140,15 +140,24 @@ const AssociatedEntityCard: React.FC<{ entity: AssociatedEntity, onSearch: (quer
     );
 
     const renderProfile = (profile: SocialProfile) => (
-        <div key={profile.url} className="flex items-center gap-2 p-2 bg-black/20 rounded-md">
+        <div key={profile.url} className="flex items-start gap-3 p-2 bg-black/20 rounded-md">
             {getPlatformIcon(profile.platform)}
             <div className="flex-grow min-w-0">
                 <a href={profile.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                     <p className="font-bold text-cyan-200 text-sm">{profile.platform}</p>
                     <p className="text-xs text-cyan-100/70 truncate">@{profile.username}</p>
                 </a>
+                {profile.followers != null && (
+                    <div className="flex items-center gap-1.5 text-xs text-cyan-300/80 mt-1">
+                        <UsersIcon className="w-3.5 h-3.5" />
+                        <span>{profile.followers.toLocaleString()}</span>
+                    </div>
+                )}
+                 {profile.bio && <p className="text-xs text-cyan-100/60 mt-1 italic line-clamp-2">"{profile.bio}"</p>}
             </div>
-            <ActionButtons text={profile.username} onSearch={onSearch} />
+            <div className="flex-shrink-0">
+                <ActionButtons text={profile.username} onSearch={onSearch} />
+            </div>
         </div>
     );
 
@@ -213,6 +222,12 @@ const ContextualSearch: React.FC<ContextualSearchProps> = ({ items, dataExtracto
     );
 }
 
+const NoDataMessage: React.FC = () => (
+    <div className="text-center text-cyan-100/60 p-4">
+        Для цієї категорії не знайдено конкретних даних.
+    </div>
+);
+
 export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources, activeFilter, onSearch }) => {
   const isFiltered = activeFilter !== 'all';
   const cardContainerClass = isFiltered ? 'lg:col-span-3' : '';
@@ -220,8 +235,8 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
   const sourceDomainData = useMemo(() => {
     if (!sources || sources.length === 0) return [];
 
-    // FIX: Replaced reduce with a type argument with a typed initial value to fix TS errors.
-    const domainCounts = sources.reduce((acc, source) => {
+    // FIX: The accumulator `acc` in `reduce` was inferred as `{}`, causing TypeScript errors. By explicitly typing `acc` as `Record<string, number>`, we ensure type safety for the arithmetic operation.
+    const domainCounts = sources.reduce((acc: Record<string, number>, source: GroundingChunk) => {
         try {
             const domain = new URL(source.web.uri).hostname.replace('www.', '');
             acc[domain] = (acc[domain] || 0) + 1;
@@ -229,7 +244,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
             console.error("Invalid URL in sources:", source.web.uri);
         }
         return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     return Object.entries(domainCounts)
         .map(([name, count]) => ({ name, count }))
@@ -260,217 +275,286 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       </div>
 
       {/* Associated Entities */}
-      {(activeFilter === 'all' || activeFilter === 'associated_entities') && results.associated_entities?.length > 0 && (
+      {((activeFilter === 'all' && results.associated_entities?.length > 0) || activeFilter === 'associated_entities') && (
         <div className="lg:col-span-3">
-            <CollapsibleCard title="Пов'язані особи" icon={<UsersIcon className="w-6 h-6 text-cyan-400"/>} count={results.associated_entities.length}>
-                 {activeFilter === 'associated_entities' && (
-                    <ContextualSearch items={results.associated_entities} dataExtractor={(item: AssociatedEntity) => item.name} categoryLabel="осіб" onSearch={onSearch} />
+            <CollapsibleCard title="Пов'язані особи" icon={<UsersIcon className="w-6 h-6 text-cyan-400"/>} count={results.associated_entities?.length || 0}>
+                {results.associated_entities?.length > 0 ? (
+                    <>
+                        {activeFilter === 'associated_entities' && (
+                            <ContextualSearch items={results.associated_entities} dataExtractor={(item: AssociatedEntity) => item.name} categoryLabel="осіб" onSearch={onSearch} />
+                        )}
+                        <div className="space-y-4">
+                            {results.associated_entities.map((entity, index) => (
+                                <AssociatedEntityCard key={index} entity={entity} onSearch={onSearch} allSources={sources} />
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                <div className="space-y-4">
-                    {results.associated_entities.map((entity, index) => (
-                        <AssociatedEntityCard key={index} entity={entity} onSearch={onSearch} allSources={sources} />
-                    ))}
-                </div>
             </CollapsibleCard>
         </div>
       )}
 
       {/* Social Profiles */}
-      {(activeFilter === 'all' || activeFilter === 'social_profiles') && results.social_profiles?.length > 0 && (
+      {((activeFilter === 'all' && results.social_profiles?.length > 0) || activeFilter === 'social_profiles') && (
         <div className={cardContainerClass}>
-            <CollapsibleCard title="Соціальні мережі" icon={<UserIcon className="w-6 h-6 text-cyan-400"/>} count={results.social_profiles.length}>
-                {activeFilter === 'social_profiles' && (
-                    <ContextualSearch items={results.social_profiles} dataExtractor={(item: SocialProfile) => item.username} categoryLabel="соц. профілів" onSearch={onSearch} />
-                )}
-                {results.social_profiles.map((profile, index) => (
-                    <div key={index} className="p-3 bg-black/20 rounded-md">
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center flex-grow min-w-0">
-                                {getPlatformIcon(profile.platform)}
-                                <a href={profile.url} target="_blank" rel="noopener noreferrer" className="hover:underline flex-grow min-w-0">
-                                    <p className="font-bold text-cyan-200">{profile.platform}</p>
-                                    <p className="text-sm text-cyan-100/70 truncate">@{profile.username}</p>
-                                </a>
+            <CollapsibleCard title="Соціальні мережі" icon={<UserIcon className="w-6 h-6 text-cyan-400"/>} count={results.social_profiles?.length || 0}>
+                {results.social_profiles?.length > 0 ? (
+                    <>
+                        {activeFilter === 'social_profiles' && (
+                            <ContextualSearch items={results.social_profiles} dataExtractor={(item: SocialProfile) => item.username} categoryLabel="соц. профілів" onSearch={onSearch} />
+                        )}
+                        {results.social_profiles.map((profile, index) => (
+                            <div key={index} className="p-3 bg-black/20 rounded-md">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start flex-grow min-w-0">
+                                        {getPlatformIcon(profile.platform)}
+                                        <div className="flex-grow min-w-0">
+                                            <a href={profile.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                <p className="font-bold text-cyan-200">{profile.platform}</p>
+                                                <p className="text-sm text-cyan-100/70 truncate">@{profile.username}</p>
+                                            </a>
+                                            {profile.followers != null && (
+                                                <div className="flex items-center gap-1.5 text-xs text-cyan-300/80 mt-2">
+                                                    <UsersIcon className="w-4 h-4" />
+                                                    <span className="font-semibold">{profile.followers.toLocaleString()} підписників</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <ActionButtons text={profile.username} onSearch={onSearch} className="ml-2 flex-shrink-0" />
+                                </div>
+                                {profile.bio && <p className="text-sm text-cyan-100/80 mt-2 pt-2 border-t border-cyan-500/10 italic">"{profile.bio}"</p>}
                             </div>
-                            <ActionButtons text={profile.username} onSearch={onSearch} className="ml-2" />
-                        </div>
-                    </div>
-                ))}
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
+                )}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Emails */}
-      {(activeFilter === 'all' || activeFilter === 'emails') && results.emails?.length > 0 && (
+      {((activeFilter === 'all' && results.emails?.length > 0) || activeFilter === 'emails') && (
          <div className={cardContainerClass}>
-            <CollapsibleCard title="Адреси електронної пошти" icon={<MailIcon className="w-6 h-6 text-cyan-400"/>} count={results.emails.length}>
-                {activeFilter === 'emails' && (
-                    <ContextualSearch items={results.emails} dataExtractor={(item: string) => item} categoryLabel="Email-адрес" onSearch={onSearch} />
+            <CollapsibleCard title="Адреси електронної пошти" icon={<MailIcon className="w-6 h-6 text-cyan-400"/>} count={results.emails?.length || 0}>
+                {results.emails?.length > 0 ? (
+                    <>
+                        {activeFilter === 'emails' && (
+                            <ContextualSearch items={results.emails} dataExtractor={(item: string) => item} categoryLabel="Email-адрес" onSearch={onSearch} />
+                        )}
+                        {results.emails.map((email, index) => (
+                            <ActionableItem key={index} text={email} onSearch={onSearch}/>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                {results.emails.map((email, index) => (
-                    <ActionableItem key={index} text={email} onSearch={onSearch}/>
-                ))}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Associated Domains */}
-      {(activeFilter === 'all' || activeFilter === 'associated_domains') && results.associated_domains?.length > 0 && (
+      {((activeFilter === 'all' && results.associated_domains?.length > 0) || activeFilter === 'associated_domains') && (
         <div className={cardContainerClass}>
-            <CollapsibleCard title="Пов'язані домени" icon={<GlobeIcon className="w-6 h-6 text-cyan-400"/>} count={results.associated_domains.length}>
-                {activeFilter === 'associated_domains' && (
-                    <ContextualSearch items={results.associated_domains} dataExtractor={(item: string) => item} categoryLabel="доменів" onSearch={onSearch} />
+            <CollapsibleCard title="Пов'язані домени" icon={<GlobeIcon className="w-6 h-6 text-cyan-400"/>} count={results.associated_domains?.length || 0}>
+                {results.associated_domains?.length > 0 ? (
+                    <>
+                        {activeFilter === 'associated_domains' && (
+                            <ContextualSearch items={results.associated_domains} dataExtractor={(item: string) => item} categoryLabel="доменів" onSearch={onSearch} />
+                        )}
+                        {results.associated_domains.map((domain, index) => (
+                            <ActionableItem key={index} text={domain} url={`http://${domain}`} onSearch={onSearch}/>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                {results.associated_domains.map((domain, index) => (
-                     <ActionableItem key={index} text={domain} url={`http://${domain}`} onSearch={onSearch}/>
-                ))}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Data Breaches */}
-      {(activeFilter === 'all' || activeFilter === 'data_breaches') && results.data_breaches?.length > 0 && (
+      {((activeFilter === 'all' && results.data_breaches?.length > 0) || activeFilter === 'data_breaches') && (
         <div className={cardContainerClass}>
-            <CollapsibleCard title="Витоки даних" icon={<BreachIcon className="w-6 h-6 text-cyan-400"/>} count={results.data_breaches.length}>
-                {activeFilter === 'data_breaches' && (
-                    <ContextualSearch items={results.data_breaches} dataExtractor={(item: DataBreach) => item.name} categoryLabel="витоків даних" onSearch={onSearch} />
-                )}
-                {results.data_breaches.map((breach, index) => (
-                    <div key={index} className="p-3 bg-black/20 rounded-md">
-                        <div className="flex justify-between items-center">
-                            <p className="font-bold text-cyan-200 truncate">{breach.name} <span className="text-xs font-normal text-cyan-100/60 ml-2">{breach.date}</span></p>
-                            <ActionButtons text={breach.name} onSearch={onSearch} className="ml-2" />
-                        </div>
-                        {breach.compromised_data?.length > 0 && (
-                            <div className="mt-3 border-t border-cyan-500/20 pt-3">
-                                <h4 className="text-sm font-bold text-cyan-200/80 mb-2">Скомпрометовані дані:</h4>
-                                <ul className="space-y-1.5 pl-1">
-                                    {breach.compromised_data.map((item, i) => (
-                                        <li key={i} className="flex items-center text-sm">
-                                            <BreachIcon className="w-4 h-4 text-red-400 mr-2 flex-shrink-0" />
-                                            <span className="text-red-300">{item}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+            <CollapsibleCard title="Витоки даних" icon={<BreachIcon className="w-6 h-6 text-cyan-400"/>} count={results.data_breaches?.length || 0}>
+                {results.data_breaches?.length > 0 ? (
+                    <>
+                        {activeFilter === 'data_breaches' && (
+                            <ContextualSearch items={results.data_breaches} dataExtractor={(item: DataBreach) => item.name} categoryLabel="витоків даних" onSearch={onSearch} />
                         )}
-                    </div>
-                ))}
+                        {results.data_breaches.map((breach, index) => (
+                            <div key={index} className="p-3 bg-black/20 rounded-md">
+                                <div className="flex justify-between items-center">
+                                    <p className="font-bold text-cyan-200 truncate">{breach.name} <span className="text-xs font-normal text-cyan-100/60 ml-2">{breach.date}</span></p>
+                                    <ActionButtons text={breach.name} onSearch={onSearch} className="ml-2" />
+                                </div>
+                                {breach.compromised_data?.length > 0 && (
+                                    <div className="mt-3 border-t border-cyan-500/20 pt-3">
+                                        <h4 className="text-sm font-bold text-cyan-200/80 mb-2">Скомпрометовані дані:</h4>
+                                        <ul className="space-y-1.5 pl-1">
+                                            {breach.compromised_data.map((item, i) => (
+                                                <li key={i} className="flex items-center text-sm">
+                                                    <BreachIcon className="w-4 h-4 text-red-400 mr-2 flex-shrink-0" />
+                                                    <span className="text-red-300">{item}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
+                )}
             </CollapsibleCard>
         </div>
       )}
       
       {/* Registry Mentions */}
-      {(activeFilter === 'all' || activeFilter === 'registry_mentions') && results.registry_mentions?.length > 0 && (
+      {((activeFilter === 'all' && results.registry_mentions?.length > 0) || activeFilter === 'registry_mentions') && (
         <div className={cardContainerClass}>
-            <CollapsibleCard title="Згадки в реєстрах" icon={<RegistryIcon className="w-6 h-6 text-cyan-400"/>} count={results.registry_mentions.length}>
-                {activeFilter === 'registry_mentions' && (
-                    <ContextualSearch items={results.registry_mentions} dataExtractor={(item: RegistryMention) => item.registry_name} categoryLabel="згадок в реєстрах" onSearch={onSearch} />
+            <CollapsibleCard title="Згадки в реєстрах" icon={<RegistryIcon className="w-6 h-6 text-cyan-400"/>} count={results.registry_mentions?.length || 0}>
+                {results.registry_mentions?.length > 0 ? (
+                    <>
+                        {activeFilter === 'registry_mentions' && (
+                            <ContextualSearch items={results.registry_mentions} dataExtractor={(item: RegistryMention) => item.registry_name} categoryLabel="згадок в реєстрах" onSearch={onSearch} />
+                        )}
+                        {results.registry_mentions.map((mention, index) => {
+                            const Wrapper = mention.url ? 'a' : 'div';
+                            return (
+                                <Wrapper 
+                                    key={index} 
+                                    href={mention.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors"
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <p className="font-bold text-cyan-200 truncate">{mention.registry_name}</p>
+                                        <ActionButtons text={mention.registry_name} onSearch={onSearch} className="ml-2" />
+                                    </div>
+                                    <p className="text-sm text-cyan-100/70 mt-1 whitespace-pre-wrap">{mention.record_details}</p>
+                                </Wrapper>
+                            );
+                        })}
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                {results.registry_mentions.map((mention, index) => {
-                    const Wrapper = mention.url ? 'a' : 'div';
-                    return (
-                        <Wrapper 
-                            key={index} 
-                            href={mention.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors"
-                        >
-                            <div className="flex justify-between items-center">
-                                <p className="font-bold text-cyan-200 truncate">{mention.registry_name}</p>
-                                <ActionButtons text={mention.registry_name} onSearch={onSearch} className="ml-2" />
-                            </div>
-                            <p className="text-sm text-cyan-100/70 mt-1 whitespace-pre-wrap">{mention.record_details}</p>
-                        </Wrapper>
-                    );
-                })}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Phone Info */}
-      {(activeFilter === 'all' || activeFilter === 'phone_info') && results.phone_info?.length > 0 && (
+      {((activeFilter === 'all' && results.phone_info?.length > 0) || activeFilter === 'phone_info') && (
         <div className={cardContainerClass}>
-            <CollapsibleCard title="Інформація про телефон" icon={<PhoneIcon className="w-6 h-6 text-cyan-400"/>} count={results.phone_info.length}>
-                 {activeFilter === 'phone_info' && (
-                    <ContextualSearch items={results.phone_info} dataExtractor={(item: PhoneInfo) => item.number} categoryLabel="номерів телефону" onSearch={onSearch} />
-                )}
-                {results.phone_info.map((info, index) => (
-                    <div key={index} className="p-3 bg-black/20 rounded-md space-y-2">
-                        <ActionableItem text={info.number} onSearch={onSearch}/>
-                        {info.associated_names?.length > 0 && (
-                            <div>
-                                <p className="text-sm text-cyan-100/70 mb-2 pl-1">Пов'язані імена:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {info.associated_names.map((name, i) => (
-                                        <div key={i} className="flex items-center gap-1 text-sm bg-black/30 rounded-full px-3 py-1">
-                                            <span className="truncate max-w-40">{name}</span>
-                                            <ActionButtons text={name} onSearch={onSearch} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+            <CollapsibleCard title="Інформація про телефон" icon={<PhoneIcon className="w-6 h-6 text-cyan-400"/>} count={results.phone_info?.length || 0}>
+                {results.phone_info?.length > 0 ? (
+                    <>
+                        {activeFilter === 'phone_info' && (
+                            <ContextualSearch items={results.phone_info} dataExtractor={(item: PhoneInfo) => item.number} categoryLabel="номерів телефону" onSearch={onSearch} />
                         )}
-                    </div>
-                ))}
+                        {results.phone_info.map((info, index) => (
+                            <div key={index} className="p-3 bg-black/20 rounded-md space-y-2">
+                                <ActionableItem text={info.number} onSearch={onSearch}/>
+                                {info.associated_names?.length > 0 && (
+                                    <div>
+                                        <p className="text-sm text-cyan-100/70 mb-2 pl-1">Пов'язані імена:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {info.associated_names.map((name, i) => (
+                                                <div key={i} className="flex items-center gap-1 text-sm bg-black/30 rounded-full px-3 py-1">
+                                                    <span className="truncate max-w-40">{name}</span>
+                                                    <ActionButtons text={name} onSearch={onSearch} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
+                )}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Forum Mentions */}
-      {(activeFilter === 'all' || activeFilter === 'forum_mentions') && results.forum_mentions?.length > 0 && (
+      {((activeFilter === 'all' && results.forum_mentions?.length > 0) || activeFilter === 'forum_mentions') && (
         <div className={cardContainerClass}>
-            <CollapsibleCard title="Згадки на форумах" icon={<ForumIcon className="w-6 h-6 text-cyan-400"/>} count={results.forum_mentions.length}>
-                 {activeFilter === 'forum_mentions' && (
-                    <ContextualSearch items={results.forum_mentions} dataExtractor={(item: ForumMention) => item.forum_name} categoryLabel="згадок на форумах" onSearch={onSearch} />
+            <CollapsibleCard title="Згадки на форумах" icon={<ForumIcon className="w-6 h-6 text-cyan-400"/>} count={results.forum_mentions?.length || 0}>
+                {results.forum_mentions?.length > 0 ? (
+                    <>
+                        {activeFilter === 'forum_mentions' && (
+                            <ContextualSearch items={results.forum_mentions} dataExtractor={(item: ForumMention) => item.forum_name} categoryLabel="згадок на форумах" onSearch={onSearch} />
+                        )}
+                        {results.forum_mentions.map((mention, index) => (
+                            <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
+                                <div className="flex justify-between items-center">
+                                    <p className="font-bold text-cyan-200 truncate">{mention.forum_name}</p>
+                                    <ActionButtons text={mention.forum_name} onSearch={onSearch} className="ml-2" />
+                                </div>
+                                <p className="text-sm text-cyan-100/70 mt-1 italic">"{mention.post_snippet}"</p>
+                            </a>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                {results.forum_mentions.map((mention, index) => (
-                    <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
-                        <div className="flex justify-between items-center">
-                            <p className="font-bold text-cyan-200 truncate">{mention.forum_name}</p>
-                            <ActionButtons text={mention.forum_name} onSearch={onSearch} className="ml-2" />
-                        </div>
-                        <p className="text-sm text-cyan-100/70 mt-1 italic">"{mention.post_snippet}"</p>
-                    </a>
-                ))}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Leaked Documents */}
-      {(activeFilter === 'all' || activeFilter === 'leaked_documents') && results.leaked_documents?.length > 0 && (
+      {((activeFilter === 'all' && results.leaked_documents?.length > 0) || activeFilter === 'leaked_documents') && (
          <div className="lg:col-span-3">
-            <CollapsibleCard title="Злиті документи / Вставки" icon={<PasteIcon className="w-6 h-6 text-cyan-400"/>} count={results.leaked_documents.length}>
-                {activeFilter === 'leaked_documents' && (
-                    <ContextualSearch items={results.leaked_documents} dataExtractor={(item: LeakedDocument) => item.source} categoryLabel="злитих документів" onSearch={onSearch} />
+            <CollapsibleCard title="Злиті документи / Вставки" icon={<PasteIcon className="w-6 h-6 text-cyan-400"/>} count={results.leaked_documents?.length || 0}>
+                {results.leaked_documents?.length > 0 ? (
+                    <>
+                        {activeFilter === 'leaked_documents' && (
+                            <ContextualSearch items={results.leaked_documents} dataExtractor={(item: LeakedDocument) => item.source} categoryLabel="злитих документів" onSearch={onSearch} />
+                        )}
+                        {results.leaked_documents.map((doc, index) => (
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
+                                <div className="flex justify-between items-center">
+                                    <p className="font-bold text-cyan-200 truncate">{doc.source}</p>
+                                    <ActionButtons text={doc.source} onSearch={onSearch} className="ml-2" />
+                                </div>
+                                <p className="text-sm text-cyan-100/70 mt-1 font-mono bg-black/30 p-2 rounded"><code>{doc.snippet}</code></p>
+                            </a>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                {results.leaked_documents.map((doc, index) => (
-                    <a href={doc.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
-                        <div className="flex justify-between items-center">
-                            <p className="font-bold text-cyan-200 truncate">{doc.source}</p>
-                            <ActionButtons text={doc.source} onSearch={onSearch} className="ml-2" />
-                        </div>
-                        <p className="text-sm text-cyan-100/70 mt-1 font-mono bg-black/30 p-2 rounded"><code>{doc.snippet}</code></p>
-                    </a>
-                ))}
             </CollapsibleCard>
         </div>
       )}
 
       {/* Web Mentions */}
-      {(activeFilter === 'all' || activeFilter === 'web_mentions') && results.web_mentions?.length > 0 && (
+      {((activeFilter === 'all' && results.web_mentions?.length > 0) || activeFilter === 'web_mentions') && (
         <div className="lg:col-span-3">
-            <CollapsibleCard title="Згадки в мережі" icon={<LinkIcon className="w-6 h-6 text-cyan-400"/>} count={results.web_mentions.length}>
-                {activeFilter === 'web_mentions' && (
-                    <ContextualSearch items={results.web_mentions} dataExtractor={(item: WebMention) => item.title} categoryLabel="згадок в мережі" onSearch={onSearch} />
+            <CollapsibleCard title="Згадки в мережі" icon={<LinkIcon className="w-6 h-6 text-cyan-400"/>} count={results.web_mentions?.length || 0}>
+                {results.web_mentions?.length > 0 ? (
+                    <>
+                        {activeFilter === 'web_mentions' && (
+                            <ContextualSearch items={results.web_mentions} dataExtractor={(item: WebMention) => item.title} categoryLabel="згадок в мережі" onSearch={onSearch} />
+                        )}
+                        {results.web_mentions.map((mention, index) => (
+                            <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
+                                <p className="font-bold text-cyan-200">{mention.title}</p>
+                                <p className="text-sm text-cyan-100/70 mt-1">{mention.snippet}</p>
+                            </a>
+                        ))}
+                    </>
+                ) : (
+                    <NoDataMessage />
                 )}
-                {results.web_mentions.map((mention, index) => (
-                    <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
-                        <p className="font-bold text-cyan-200">{mention.title}</p>
-                        <p className="text-sm text-cyan-100/70 mt-1">{mention.snippet}</p>
-                    </a>
-                ))}
             </CollapsibleCard>
         </div>
       )}
