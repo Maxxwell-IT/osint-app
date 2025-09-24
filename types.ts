@@ -39,9 +39,19 @@ export interface PhoneInfo {
     associated_names: string[];
 }
 
+export interface AssociatedEntity {
+    name: string;
+    emails: string[];
+    phone_numbers: string[];
+    social_profiles: SocialProfile[];
+    domains: string[];
+    sources: string[]; // Textual explanations from AI on why data is linked
+}
+
 export interface OSINTResult {
   summary: string;
   full_name?: string;
+  associated_entities: AssociatedEntity[];
   social_profiles: SocialProfile[];
   emails: string[];
   web_mentions: WebMention[];

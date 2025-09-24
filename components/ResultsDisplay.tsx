@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import type { OSINTResult, GroundingChunk } from '../types';
+import type { OSINTResult, GroundingChunk, SocialProfile, AssociatedEntity, DataBreach, ForumMention, LeakedDocument, RegistryMention, PhoneInfo, WebMention } from '../types';
 import { UserIcon } from './icons/UserIcon';
+import { UsersIcon } from './icons/UsersIcon';
 import { MailIcon } from './icons/MailIcon';
 import { GlobeIcon } from './icons/GlobeIcon';
 import { LinkIcon } from './icons/LinkIcon';
@@ -13,6 +14,7 @@ import { RegistryIcon } from './icons/RegistryIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CopyButton } from './CopyButton';
 import { SearchPlusIcon } from './icons/SearchPlusIcon';
+import { SearchIcon } from './icons/SearchIcon';
 import { TwitterIcon } from './icons/TwitterIcon';
 import { LinkedInIcon } from './icons/LinkedInIcon';
 import { InstagramIcon } from './icons/InstagramIcon';
@@ -23,17 +25,17 @@ interface ResultsDisplayProps {
   results: OSINTResult;
   sources: GroundingChunk[];
   activeFilter: string;
-  onDeepSearch: (query: string) => void;
+  onSearch: (query: string, isNewInvestigation: boolean) => void;
 }
 
-const ActionButtons: React.FC<{ text: string; onDeepSearch: (text: string) => void; className?: string }> = ({ text, onDeepSearch, className }) => (
+const ActionButtons: React.FC<{ text: string; onSearch: (text: string, isNew: boolean) => void; className?: string }> = ({ text, onSearch, className }) => (
     <div className={`flex items-center flex-shrink-0 ${className ?? ''}`}>
         <CopyButton textToCopy={text} />
         <button
             onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                onDeepSearch(text);
+                onSearch(text, false);
             }}
             className="p-1.5 rounded-md hover:bg-cyan-500/20 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400"
             aria-label={`Deep search ${text}`}
@@ -44,7 +46,7 @@ const ActionButtons: React.FC<{ text: string; onDeepSearch: (text: string) => vo
     </div>
 );
 
-const ActionableItem: React.FC<{text: string; url?: string; onDeepSearch: (text: string) => void}> = ({ text, url, onDeepSearch }) => {
+const ActionableItem: React.FC<{text: string; url?: string; onSearch: (text: string, isNew: boolean) => void}> = ({ text, url, onSearch }) => {
     const content = url ? (
         <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline flex-grow truncate">{text}</a>
     ) : (
@@ -54,7 +56,7 @@ const ActionableItem: React.FC<{text: string; url?: string; onDeepSearch: (text:
     return (
         <div className="flex items-center justify-between p-3 bg-black/20 rounded-md">
             {content}
-            <ActionButtons text={text} onDeepSearch={onDeepSearch} className="ml-2" />
+            <ActionButtons text={text} onSearch={onSearch} className="ml-2" />
         </div>
     );
 };
@@ -78,7 +80,7 @@ const CollapsibleCard: React.FC<{ title: string; icon: React.ReactNode; children
                 <ChevronDownIcon className={`w-6 h-6 text-cyan-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
         </button>
-        <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'}`}>
             <div className="p-4 pt-0 text-cyan-100/90 space-y-3">
                 {children}
             </div>
@@ -96,17 +98,129 @@ const getPlatformIcon = (platform: string) => {
     return <UserIcon className="w-6 h-6 mr-3 text-cyan-400" />;
 }
 
+const SmartSourceText: React.FC<{ text: string, sources: GroundingChunk[] }> = ({ text, sources }) => {
+    const sourceDomains = useMemo(() => sources.map(s => {
+        try {
+            return { domain: new URL(s.web.uri).hostname.replace(/^www\./, ''), uri: s.web.uri };
+        } catch {
+            return null;
+        }
+    }).filter(Boolean), [sources]);
 
-export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources, activeFilter, onDeepSearch }) => {
+    const parts = useMemo(() => {
+        if (!sourceDomains.length) {
+            return [text];
+        }
+        
+        // Create a regex to find all source domains in the text
+        const regex = new RegExp(`(${sourceDomains.map(s => s!.domain.replace('.', '\\.')).join('|')})`, 'gi');
+        
+        return text.split(regex).map((part, index) => {
+            const matchedSource = sourceDomains.find(s => s!.domain.toLowerCase() === part.toLowerCase());
+            if (matchedSource) {
+                return <a href={matchedSource.uri} key={index} target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300 transition-colors">{part}</a>;
+            }
+            return part;
+        });
+    }, [text, sourceDomains]);
+
+    return <>{parts}</>;
+};
+
+
+const AssociatedEntityCard: React.FC<{ entity: AssociatedEntity, onSearch: (query: string, isNew: boolean) => void, allSources: GroundingChunk[] }> = ({ entity, onSearch, allSources }) => {
+    const renderItem = (item: string, type: 'email' | 'phone' | 'domain') => (
+        <div key={item} className="flex items-center gap-2 p-2 bg-black/20 rounded-md">
+            {type === 'email' && <MailIcon className="w-4 h-4 text-cyan-300/70 flex-shrink-0" />}
+            {type === 'phone' && <PhoneIcon className="w-4 h-4 text-cyan-300/70 flex-shrink-0" />}
+            {type === 'domain' && <GlobeIcon className="w-4 h-4 text-cyan-300/70 flex-shrink-0" />}
+            <span className="truncate flex-grow">{item}</span>
+            <ActionButtons text={item} onSearch={onSearch} />
+        </div>
+    );
+
+    const renderProfile = (profile: SocialProfile) => (
+        <div key={profile.url} className="flex items-center gap-2 p-2 bg-black/20 rounded-md">
+            {getPlatformIcon(profile.platform)}
+            <div className="flex-grow min-w-0">
+                <a href={profile.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <p className="font-bold text-cyan-200 text-sm">{profile.platform}</p>
+                    <p className="text-xs text-cyan-100/70 truncate">@{profile.username}</p>
+                </a>
+            </div>
+            <ActionButtons text={profile.username} onSearch={onSearch} />
+        </div>
+    );
+
+    return (
+        <div className="glass-card rounded-lg p-4 border-2 border-cyan-500/30">
+            <h4 className="text-lg font-orbitron text-cyan-200 mb-3 glowing-text">{entity.name}</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {entity.emails.map(e => renderItem(e, 'email'))}
+                {entity.phone_numbers.map(p => renderItem(p, 'phone'))}
+                {entity.domains.map(d => renderItem(d, 'domain'))}
+                {entity.social_profiles.map(p => renderProfile(p))}
+            </div>
+
+            {entity.sources.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-cyan-500/20">
+                    <h5 className="text-sm font-bold text-cyan-300/80 mb-2">Обґрунтування зв'язку:</h5>
+                    <ul className="space-y-1.5 pl-1">
+                        {entity.sources.map((source, i) => (
+                            <li key={i} className="flex items-start text-sm">
+                                <LinkIcon className="w-4 h-4 text-cyan-400 mr-2 mt-0.5 flex-shrink-0" />
+                                <span className="text-cyan-100/80"><SmartSourceText text={source} sources={allSources} /></span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
+interface ContextualSearchProps {
+    items: any[];
+    dataExtractor: (item: any) => string;
+    categoryLabel: string;
+    onSearch: (query: string, isNewInvestigation: boolean) => void;
+  }
+  
+const ContextualSearch: React.FC<ContextualSearchProps> = ({ items, dataExtractor, categoryLabel, onSearch }) => {
+    if (!items || items.length === 0) return null;
+
+    const handleContextualSearch = () => {
+        const query = items.map(dataExtractor).filter(Boolean).join(', ');
+        if (query) {
+            onSearch(query, true);
+        }
+    };
+
+    return (
+        <div className="mb-4 p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/30 flex items-center justify-between gap-4">
+            <p className="text-sm text-cyan-200">
+                Створити нове розслідування на основі всіх знайдених <span className="font-bold">{categoryLabel}</span>.
+            </p>
+            <button
+                onClick={handleContextualSearch}
+                className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2 px-4 rounded-md transition-all duration-300 transform hover:scale-105 text-sm flex-shrink-0"
+            >
+                <SearchIcon className="w-4 h-4" />
+                <span>Дослідити всі</span>
+            </button>
+        </div>
+    );
+}
+
+export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources, activeFilter, onSearch }) => {
   const isFiltered = activeFilter !== 'all';
   const cardContainerClass = isFiltered ? 'lg:col-span-3' : '';
 
   const sourceDomainData = useMemo(() => {
     if (!sources || sources.length === 0) return [];
 
-    // FIX: The initial value of the reduce function is explicitly typed as `Record<string, number>`.
-    // This ensures TypeScript correctly infers the type of `domainCounts`, allowing the `count`
-    // property to be used in arithmetic operations within the subsequent `.sort()` method.
+    // FIX: Replaced reduce with a type argument with a typed initial value to fix TS errors.
     const domainCounts = sources.reduce((acc, source) => {
         try {
             const domain = new URL(source.web.uri).hostname.replace('www.', '');
@@ -120,7 +234,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
     return Object.entries(domainCounts)
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 15); // Show top 15 domains for clarity
+        .slice(0, 15);
   }, [sources]);
 
   return (
@@ -138,17 +252,36 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                 {results.full_name && (
                     <div className="mt-2">
                         <p className="text-cyan-300 font-bold mb-1">Можливе повне ім'я:</p>
-                        <ActionableItem text={results.full_name} onDeepSearch={onDeepSearch} />
+                        <ActionableItem text={results.full_name} onSearch={onSearch} />
                     </div>
                 )}
             </div>
         </div>
       </div>
 
+      {/* Associated Entities */}
+      {(activeFilter === 'all' || activeFilter === 'associated_entities') && results.associated_entities?.length > 0 && (
+        <div className="lg:col-span-3">
+            <CollapsibleCard title="Пов'язані особи" icon={<UsersIcon className="w-6 h-6 text-cyan-400"/>} count={results.associated_entities.length}>
+                 {activeFilter === 'associated_entities' && (
+                    <ContextualSearch items={results.associated_entities} dataExtractor={(item: AssociatedEntity) => item.name} categoryLabel="осіб" onSearch={onSearch} />
+                )}
+                <div className="space-y-4">
+                    {results.associated_entities.map((entity, index) => (
+                        <AssociatedEntityCard key={index} entity={entity} onSearch={onSearch} allSources={sources} />
+                    ))}
+                </div>
+            </CollapsibleCard>
+        </div>
+      )}
+
       {/* Social Profiles */}
       {(activeFilter === 'all' || activeFilter === 'social_profiles') && results.social_profiles?.length > 0 && (
         <div className={cardContainerClass}>
             <CollapsibleCard title="Соціальні мережі" icon={<UserIcon className="w-6 h-6 text-cyan-400"/>} count={results.social_profiles.length}>
+                {activeFilter === 'social_profiles' && (
+                    <ContextualSearch items={results.social_profiles} dataExtractor={(item: SocialProfile) => item.username} categoryLabel="соц. профілів" onSearch={onSearch} />
+                )}
                 {results.social_profiles.map((profile, index) => (
                     <div key={index} className="p-3 bg-black/20 rounded-md">
                         <div className="flex justify-between items-center">
@@ -159,7 +292,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                                     <p className="text-sm text-cyan-100/70 truncate">@{profile.username}</p>
                                 </a>
                             </div>
-                            <ActionButtons text={profile.username} onDeepSearch={onDeepSearch} className="ml-2" />
+                            <ActionButtons text={profile.username} onSearch={onSearch} className="ml-2" />
                         </div>
                     </div>
                 ))}
@@ -171,8 +304,11 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'emails') && results.emails?.length > 0 && (
          <div className={cardContainerClass}>
             <CollapsibleCard title="Адреси електронної пошти" icon={<MailIcon className="w-6 h-6 text-cyan-400"/>} count={results.emails.length}>
+                {activeFilter === 'emails' && (
+                    <ContextualSearch items={results.emails} dataExtractor={(item: string) => item} categoryLabel="Email-адрес" onSearch={onSearch} />
+                )}
                 {results.emails.map((email, index) => (
-                    <ActionableItem key={index} text={email} onDeepSearch={onDeepSearch}/>
+                    <ActionableItem key={index} text={email} onSearch={onSearch}/>
                 ))}
             </CollapsibleCard>
         </div>
@@ -182,8 +318,11 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'associated_domains') && results.associated_domains?.length > 0 && (
         <div className={cardContainerClass}>
             <CollapsibleCard title="Пов'язані домени" icon={<GlobeIcon className="w-6 h-6 text-cyan-400"/>} count={results.associated_domains.length}>
+                {activeFilter === 'associated_domains' && (
+                    <ContextualSearch items={results.associated_domains} dataExtractor={(item: string) => item} categoryLabel="доменів" onSearch={onSearch} />
+                )}
                 {results.associated_domains.map((domain, index) => (
-                     <ActionableItem key={index} text={domain} url={`http://${domain}`} onDeepSearch={onDeepSearch}/>
+                     <ActionableItem key={index} text={domain} url={`http://${domain}`} onSearch={onSearch}/>
                 ))}
             </CollapsibleCard>
         </div>
@@ -193,11 +332,14 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'data_breaches') && results.data_breaches?.length > 0 && (
         <div className={cardContainerClass}>
             <CollapsibleCard title="Витоки даних" icon={<BreachIcon className="w-6 h-6 text-cyan-400"/>} count={results.data_breaches.length}>
+                {activeFilter === 'data_breaches' && (
+                    <ContextualSearch items={results.data_breaches} dataExtractor={(item: DataBreach) => item.name} categoryLabel="витоків даних" onSearch={onSearch} />
+                )}
                 {results.data_breaches.map((breach, index) => (
                     <div key={index} className="p-3 bg-black/20 rounded-md">
                         <div className="flex justify-between items-center">
                             <p className="font-bold text-cyan-200 truncate">{breach.name} <span className="text-xs font-normal text-cyan-100/60 ml-2">{breach.date}</span></p>
-                            <ActionButtons text={breach.name} onDeepSearch={onDeepSearch} className="ml-2" />
+                            <ActionButtons text={breach.name} onSearch={onSearch} className="ml-2" />
                         </div>
                         {breach.compromised_data?.length > 0 && (
                             <div className="mt-3 border-t border-cyan-500/20 pt-3">
@@ -222,6 +364,9 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'registry_mentions') && results.registry_mentions?.length > 0 && (
         <div className={cardContainerClass}>
             <CollapsibleCard title="Згадки в реєстрах" icon={<RegistryIcon className="w-6 h-6 text-cyan-400"/>} count={results.registry_mentions.length}>
+                {activeFilter === 'registry_mentions' && (
+                    <ContextualSearch items={results.registry_mentions} dataExtractor={(item: RegistryMention) => item.registry_name} categoryLabel="згадок в реєстрах" onSearch={onSearch} />
+                )}
                 {results.registry_mentions.map((mention, index) => {
                     const Wrapper = mention.url ? 'a' : 'div';
                     return (
@@ -234,7 +379,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         >
                             <div className="flex justify-between items-center">
                                 <p className="font-bold text-cyan-200 truncate">{mention.registry_name}</p>
-                                <ActionButtons text={mention.registry_name} onDeepSearch={onDeepSearch} className="ml-2" />
+                                <ActionButtons text={mention.registry_name} onSearch={onSearch} className="ml-2" />
                             </div>
                             <p className="text-sm text-cyan-100/70 mt-1 whitespace-pre-wrap">{mention.record_details}</p>
                         </Wrapper>
@@ -248,9 +393,12 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'phone_info') && results.phone_info?.length > 0 && (
         <div className={cardContainerClass}>
             <CollapsibleCard title="Інформація про телефон" icon={<PhoneIcon className="w-6 h-6 text-cyan-400"/>} count={results.phone_info.length}>
+                 {activeFilter === 'phone_info' && (
+                    <ContextualSearch items={results.phone_info} dataExtractor={(item: PhoneInfo) => item.number} categoryLabel="номерів телефону" onSearch={onSearch} />
+                )}
                 {results.phone_info.map((info, index) => (
                     <div key={index} className="p-3 bg-black/20 rounded-md space-y-2">
-                        <ActionableItem text={info.number} onDeepSearch={onDeepSearch}/>
+                        <ActionableItem text={info.number} onSearch={onSearch}/>
                         {info.associated_names?.length > 0 && (
                             <div>
                                 <p className="text-sm text-cyan-100/70 mb-2 pl-1">Пов'язані імена:</p>
@@ -258,7 +406,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                                     {info.associated_names.map((name, i) => (
                                         <div key={i} className="flex items-center gap-1 text-sm bg-black/30 rounded-full px-3 py-1">
                                             <span className="truncate max-w-40">{name}</span>
-                                            <ActionButtons text={name} onDeepSearch={onDeepSearch} />
+                                            <ActionButtons text={name} onSearch={onSearch} />
                                         </div>
                                     ))}
                                 </div>
@@ -274,11 +422,14 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'forum_mentions') && results.forum_mentions?.length > 0 && (
         <div className={cardContainerClass}>
             <CollapsibleCard title="Згадки на форумах" icon={<ForumIcon className="w-6 h-6 text-cyan-400"/>} count={results.forum_mentions.length}>
+                 {activeFilter === 'forum_mentions' && (
+                    <ContextualSearch items={results.forum_mentions} dataExtractor={(item: ForumMention) => item.forum_name} categoryLabel="згадок на форумах" onSearch={onSearch} />
+                )}
                 {results.forum_mentions.map((mention, index) => (
                     <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
                         <div className="flex justify-between items-center">
                             <p className="font-bold text-cyan-200 truncate">{mention.forum_name}</p>
-                            <ActionButtons text={mention.forum_name} onDeepSearch={onDeepSearch} className="ml-2" />
+                            <ActionButtons text={mention.forum_name} onSearch={onSearch} className="ml-2" />
                         </div>
                         <p className="text-sm text-cyan-100/70 mt-1 italic">"{mention.post_snippet}"</p>
                     </a>
@@ -291,11 +442,14 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'leaked_documents') && results.leaked_documents?.length > 0 && (
          <div className="lg:col-span-3">
             <CollapsibleCard title="Злиті документи / Вставки" icon={<PasteIcon className="w-6 h-6 text-cyan-400"/>} count={results.leaked_documents.length}>
+                {activeFilter === 'leaked_documents' && (
+                    <ContextualSearch items={results.leaked_documents} dataExtractor={(item: LeakedDocument) => item.source} categoryLabel="злитих документів" onSearch={onSearch} />
+                )}
                 {results.leaked_documents.map((doc, index) => (
                     <a href={doc.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
                         <div className="flex justify-between items-center">
                             <p className="font-bold text-cyan-200 truncate">{doc.source}</p>
-                            <ActionButtons text={doc.source} onDeepSearch={onDeepSearch} className="ml-2" />
+                            <ActionButtons text={doc.source} onSearch={onSearch} className="ml-2" />
                         </div>
                         <p className="text-sm text-cyan-100/70 mt-1 font-mono bg-black/30 p-2 rounded"><code>{doc.snippet}</code></p>
                     </a>
@@ -308,6 +462,9 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
       {(activeFilter === 'all' || activeFilter === 'web_mentions') && results.web_mentions?.length > 0 && (
         <div className="lg:col-span-3">
             <CollapsibleCard title="Згадки в мережі" icon={<LinkIcon className="w-6 h-6 text-cyan-400"/>} count={results.web_mentions.length}>
+                {activeFilter === 'web_mentions' && (
+                    <ContextualSearch items={results.web_mentions} dataExtractor={(item: WebMention) => item.title} categoryLabel="згадок в мережі" onSearch={onSearch} />
+                )}
                 {results.web_mentions.map((mention, index) => (
                     <a href={mention.url} target="_blank" rel="noopener noreferrer" key={index} className="block p-3 bg-black/20 rounded-md hover:bg-cyan-500/20 transition-colors">
                         <p className="font-bold text-cyan-200">{mention.title}</p>

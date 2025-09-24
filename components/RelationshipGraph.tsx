@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState, useMemo } from 'react';
 import type { OSINTResult } from '../types';
 import { UserIcon } from './icons/UserIcon';
+import { UsersIcon } from './icons/UsersIcon';
 import { MailIcon } from './icons/MailIcon';
 import { GlobeIcon } from './icons/GlobeIcon';
 import { BreachIcon } from './icons/BreachIcon';
@@ -37,6 +38,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ target, re
     const [lines, setLines] = useState<React.ReactElement[]>([]);
 
     const dataCategories = useMemo(() => [
+        { key: 'associated_entities', title: 'Особи', icon: <UsersIcon className="w-6 h-6 text-cyan-400" />, data: results.associated_entities?.map(e => e.name) },
         { key: 'social_profiles', title: 'Соц. мережі', icon: <UserIcon className="w-6 h-6 text-cyan-400" />, data: results.social_profiles?.map(p => p.username) },
         { key: 'emails', title: 'Emails', icon: <MailIcon className="w-6 h-6 text-cyan-400" />, data: results.emails },
         { key: 'associated_domains', title: 'Домени', icon: <GlobeIcon className="w-6 h-6 text-cyan-400" />, data: results.associated_domains },
@@ -111,7 +113,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ target, re
                 </Node>
                 
                 {/* Categories and Data Nodes */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-8 gap-y-12 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-12 w-full">
                     {dataCategories.map((cat) => (
                         <div key={cat.key} className="flex flex-col items-center gap-4">
                             <CategoryNode id={`cat-node-${cat.key}`} title={cat.title} icon={cat.icon} />

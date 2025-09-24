@@ -8,6 +8,7 @@ import type { OSINTResult, GroundingChunk } from './types';
 import { FilterControls, FilterOption } from './components/FilterControls';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { RelationshipGraph } from './components/RelationshipGraph';
+import { ExportButton } from './components/ExportButton';
 
 const App: React.FC = () => {
   const [query, setQuery] = useState<string>('');
@@ -76,14 +77,10 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
-  const handleDeepSearch = (deepSearchTerm: string) => {
-    if (investigationPath[investigationPath.length - 1] === deepSearchTerm) return;
-    handleSearch(deepSearchTerm, false);
-  };
 
   const generateFilters = (data: OSINTResult): FilterOption[] => {
     const filters: FilterOption[] = [];
+    if (data.associated_entities?.length) filters.push({ key: 'associated_entities', label: 'Пов\'язані особи', count: data.associated_entities.length });
     if (data.social_profiles?.length) filters.push({ key: 'social_profiles', label: 'Соціальні мережі', count: data.social_profiles.length });
     if (data.emails?.length) filters.push({ key: 'emails', label: 'Email', count: data.emails.length });
     if (data.associated_domains?.length) filters.push({ key: 'associated_domains', label: 'Домени', count: data.associated_domains.length });
@@ -145,11 +142,18 @@ const App: React.FC = () => {
           {!isLoading && results && (
             <div className="mt-8">
               <RelationshipGraph target={investigationPath[investigationPath.length - 1]} results={results} />
-              <FilterControls 
-                filters={generateFilters(results)}
-                activeFilter={activeFilter}
-              />
-              <ResultsDisplay results={results} sources={sources} activeFilter={activeFilter} onDeepSearch={handleDeepSearch} />
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <FilterControls 
+                  filters={generateFilters(results)}
+                  activeFilter={activeFilter}
+                />
+                <ExportButton 
+                  results={results} 
+                  sources={sources} 
+                  target={investigationPath[investigationPath.length - 1]}
+                />
+              </div>
+              <ResultsDisplay results={results} sources={sources} activeFilter={activeFilter} onSearch={handleSearch} />
             </div>
           )}
         </main>

@@ -1,5 +1,5 @@
 {
-  "name": "OSINT-слідчий",
-  "description": "Інструмент OSINT на базі штучного інтелекту для збору та аналізу загальнодоступної інформації про ціль за допомогою Gemini API від Google із заземленням у пошуку.",
+  "name": "OSINT-app",
+  "description": "Інструмент OSINT збору та аналізу загальнодоступної інформації про ціль за допомогою LLM Dolhopiatov prod.",
   "requestFramePermissions": []
 }
