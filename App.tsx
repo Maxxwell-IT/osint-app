@@ -1,27 +1,40 @@
+
 import React, { useState, useEffect } from 'react';
-import { SearchInput } from './components/SearchInput';
-import { ResultsDisplay } from './components/ResultsDisplay';
+import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { LogoIcon } from './components/icons/LogoIcon';
-import { investigateTarget } from './services/geminiService';
-import type { OSINTResult, GroundingChunk, HistoryEntry } from './types';
-import { FilterControls, FilterOption } from './components/FilterControls';
+import { getConversationalAnalysis } from './services/geminiService';
+import type { OSINTResult, GroundingChunk, HistoryEntry, GeminiContent, ChatMessage, AnalysisData } from './types';
 import { ErrorDisplay } from './components/ErrorDisplay';
-import { RelationshipGraph } from './components/RelationshipGraph';
-import { ExportButton } from './components/ExportButton';
 import { HistorySidebar } from './components/HistorySidebar';
 import { HistoryIcon } from './components/icons/HistoryIcon';
+import { BotResponse } from './components/BotResponse';
+import { ChatInterface } from './components/ChatInterface';
+import { PlusCircleIcon } from './components/icons/PlusCircleIcon';
+
+const WelcomeScreen: React.FC = () => (
+    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <LogoIcon className="w-24 h-24 text-blue-500/30 mb-6" />
+        <h2 className="text-3xl font-bold text-slate-200 font-['Inter']">Вітаю в DeepSerch</h2>
+        <p className="mt-2 text-slate-400 max-w-md">
+            Введіть ціль для аналізу в полі нижче, щоб розпочати дослідження. Ваш діалог з'явиться ліворуч, а детальні результати — тут.
+        </p>
+    </div>
+);
+
 
 const App: React.FC = () => {
-  const [query, setQuery] = useState<string>('');
-  const [results, setResults] = useState<OSINTResult | null>(null);
-  const [sources, setSources] = useState<GroundingChunk[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<string>('all');
-  const [investigationPath, setInvestigationPath] = useState<string[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [conversationHistory, setConversationHistory] = useState<GeminiContent[]>([]);
+  const [currentTarget, setCurrentTarget] = useState<string>('');
+  const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisData | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [highlightedItem, setHighlightedItem] = useState<{ key: string; text: string } | null>(null);
+
 
   useEffect(() => {
     try {
@@ -33,48 +46,85 @@ const App: React.FC = () => {
       console.error("Failed to load history from localStorage", error);
       localStorage.removeItem('osint-history');
     }
+    startNewAnalysis();
   }, []);
 
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.substring(1);
-      setActiveFilter(hash || 'all');
-    };
+  const startNewAnalysis = () => {
+    setConversationHistory([]);
+    setCurrentTarget('');
+    setSelectedAnalysis(null);
+    setSelectedMessageId(null);
+    setHighlightedItem(null);
+    setMessages([
+        { 
+            id: Date.now(), 
+            sender: 'bot', 
+            content: (
+                <div className="text-slate-300">
+                    <p className="font-bold">Вітаю! Я — DeepSerch аналітик.</p>
+                    <p>Введіть ціль (наприклад, ім'я користувача, email, домен), щоб почати аналіз.</p>
+                </div>
+            )
+        }
+    ]);
+  }
 
-    handleHashChange(); // Set initial filter based on the current hash
-    window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, []);
-
-  const handleSearch = async (searchTerm: string, isNewInvestigation: boolean = true) => {
+  const handleSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
-      setError('Будь ласка, введіть ціль для розслідування.');
+      setError('Будь ласка, введіть ціль для аналізу.');
       return;
     }
+    
+    const isNewAnalysis = conversationHistory.length === 0;
+    if (isNewAnalysis) {
+        setCurrentTarget(searchTerm);
+    }
+
     setIsLoading(true);
     setError(null);
-    setResults(null);
-    setSources([]);
-    setQuery(searchTerm);
+    setHighlightedItem(null);
     
-    const newPath = isNewInvestigation 
-        ? [searchTerm] 
-        : [...investigationPath.filter(p => p !== searchTerm), searchTerm];
-    setInvestigationPath(newPath);
+    const userMessage: ChatMessage = { id: Date.now(), sender: 'user', content: searchTerm };
+    const loadingMessage: ChatMessage = { id: Date.now() + 1, sender: 'bot', content: <LoadingIndicator /> };
+    setMessages(prev => [...prev, userMessage, loadingMessage]);
 
     try {
-      const response = await investigateTarget(searchTerm);
+      const response = await getConversationalAnalysis(searchTerm, conversationHistory);
       if (response) {
-        setResults(response.data);
-        setSources(response.sources);
+        const newConversation: GeminiContent[] = [
+            ...conversationHistory,
+            { role: 'user', parts: [{ text: searchTerm }] },
+            { role: 'model', parts: [{ text: response.fullResponse }] },
+        ];
+        const newPath = newConversation.filter(m => m.role === 'user').map(m => m.parts[0].text);
 
-        // Save to history
-        const rootTarget = newPath[0];
+        const analysisData: AnalysisData = {
+            results: response.data,
+            sources: response.sources,
+            target: newPath[newPath.length - 1],
+            investigationPath: newPath,
+        };
+
+        const resultsMessage: ChatMessage = { 
+            id: Date.now() + 1, 
+            sender: 'bot', 
+            content: (
+                 <div>
+                    <p className="font-bold mb-1">Аналіз завершено.</p>
+                    <p className="text-sm text-slate-400">Натисніть, щоб переглянути повний звіт.</p>
+                </div>
+            ),
+            analysisData
+        };
+        setMessages(prev => [...prev.slice(0, -1), resultsMessage]);
+        setSelectedAnalysis(analysisData);
+        setSelectedMessageId(resultsMessage.id);
+
+        setConversationHistory(newConversation);
+
+        const rootTarget = isNewAnalysis ? searchTerm : currentTarget;
         const newHistoryEntry: HistoryEntry = {
-            id: rootTarget, // Use the root target as a stable ID
+            id: rootTarget,
             timestamp: Date.now(),
             target: rootTarget,
             investigationPath: newPath,
@@ -90,7 +140,7 @@ const App: React.FC = () => {
         });
 
       } else {
-        setError('Не вдалося отримати дійсну відповідь від служби розслідувань. Спробуйте ще раз.');
+        throw new Error('Не вдалося отримати дійсну відповідь від аналітичної служби. Спробуйте ще раз.');
       }
     } catch (err) {
       console.error(err);
@@ -101,49 +151,70 @@ const App: React.FC = () => {
       if (errorMessage.includes("malformed response") || errorMessage.includes("No valid JSON")) {
           userFriendlyMessage = "ШІ повернув відповідь у неочікуваному форматі. Це може бути тимчасовою проблемою. Будь ласка, спробуйте виконати запит ще раз або трохи змінити його.";
       } else if (errorMessage.includes("Failed to communicate")) {
-          userFriendlyMessage = "Не вдалося зв'язатися зі службою розслідувань. Перевірте ваше інтернет-з'єднання та спробуйте знову.";
+          userFriendlyMessage = "Не вдалося зв'язатися з аналітичною службою. Перевірте ваше інтернет-з'єднання та спробуйте знову.";
       }
       
-      setError(userFriendlyMessage);
+      const errorMessageContent = <p className="text-red-300">{userFriendlyMessage}</p>
+      const errorMessageObject: ChatMessage = { id: Date.now() + 1, sender: 'bot', content: errorMessageContent };
+      setMessages(prev => [...prev.slice(0, -1), errorMessageObject]);
+      setError(userFriendlyMessage); 
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleLoadFromHistory = (entry: HistoryEntry) => {
-    setQuery(entry.investigationPath[entry.investigationPath.length - 1]);
-    setResults(entry.results);
-    setSources(entry.sources);
-    setInvestigationPath(entry.investigationPath);
+    startNewAnalysis();
     setError(null);
-    setIsHistoryOpen(false); // Close sidebar on selection
-    window.location.hash = '#all';
+    setHighlightedItem(null);
+
+     const analysisData: AnalysisData = {
+        results: entry.results,
+        sources: entry.sources,
+        target: entry.investigationPath[entry.investigationPath.length - 1],
+        investigationPath: entry.investigationPath,
+    };
+    
+    const userMessage: ChatMessage = { id: Date.now(), sender: 'user', content: `Завантажити аналіз для: ${entry.target}`};
+    const botMessage: ChatMessage = { 
+        id: Date.now() + 1, 
+        sender: 'bot', 
+        content: (
+            <div>
+                <p className="font-bold mb-1">Аналіз завантажено з історії.</p>
+                <p className="text-sm text-slate-400">Натисніть, щоб переглянути звіт.</p>
+            </div>
+        ),
+        analysisData
+    };
+    
+    setMessages([userMessage, botMessage]);
+    setSelectedAnalysis(analysisData);
+    setSelectedMessageId(botMessage.id);
+    setIsHistoryOpen(false);
+  };
+  
+  const handleSelectMessage = (message: ChatMessage) => {
+    if (message.analysisData) {
+        setSelectedAnalysis(message.analysisData);
+        setSelectedMessageId(message.id);
+        setHighlightedItem(null);
+    }
+  }
+
+  const handleNodeClick = (key: string, text: string) => {
+      setHighlightedItem({ key, text });
   };
 
   const handleClearHistory = () => {
-    if (window.confirm("Ви впевнені, що хочете видалити всю історію розслідувань? Цю дію неможливо скасувати.")) {
+    if (window.confirm("Ви впевнені, що хочете видалити всю історію пошуків? Цю дію неможливо скасувати.")) {
       setHistory([]);
       localStorage.removeItem('osint-history');
     }
   };
 
-  const generateFilters = (data: OSINTResult): FilterOption[] => {
-    const filters: FilterOption[] = [];
-    if (data.associated_entities?.length) filters.push({ key: 'associated_entities', label: 'Пов\'язані особи', count: data.associated_entities.length });
-    if (data.social_profiles?.length) filters.push({ key: 'social_profiles', label: 'Соціальні мережі', count: data.social_profiles.length });
-    if (data.emails?.length) filters.push({ key: 'emails', label: 'Email', count: data.emails.length });
-    if (data.associated_domains?.length) filters.push({ key: 'associated_domains', label: 'Домени', count: data.associated_domains.length });
-    if (data.data_breaches?.length) filters.push({ key: 'data_breaches', label: 'Витоки даних', count: data.data_breaches.length });
-    if (data.registry_mentions?.length) filters.push({ key: 'registry_mentions', label: 'Реєстри', count: data.registry_mentions.length });
-    if (data.phone_info?.length) filters.push({ key: 'phone_info', label: 'Телефон', count: data.phone_info.length });
-    if (data.forum_mentions?.length) filters.push({ key: 'forum_mentions', label: 'Форуми', count: data.forum_mentions.length });
-    if (data.leaked_documents?.length) filters.push({ key: 'leaked_documents', label: 'Документи', count: data.leaked_documents.length });
-    if (data.web_mentions?.length) filters.push({ key: 'web_mentions', label: 'Згадки в мережі', count: data.web_mentions.length });
-    return filters;
-  };
-
   return (
-    <div className="min-h-screen bg-grid-cyan-500/10">
+    <div className="min-h-screen bg-transparent flex">
        <HistorySidebar 
         history={history} 
         onLoad={handleLoadFromHistory} 
@@ -152,79 +223,63 @@ const App: React.FC = () => {
         onClose={() => setIsHistoryOpen(false)}
       />
 
-      <div className="lg:ml-72 transition-all duration-300">
-        <div className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-6xl mx-auto">
-              <header className="text-center mb-8">
-                <div className="flex items-center justify-center gap-4">
-                  <button 
-                      onClick={() => setIsHistoryOpen(true)} 
-                      className="lg:hidden p-2 -ml-2 rounded-md text-cyan-400 hover:bg-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      aria-label="Відкрити історію"
-                    >
-                        <HistoryIcon className="w-7 h-7"/>
-                  </button>
-                  <LogoIcon className="w-12 h-12 text-cyan-400" />
-                  <h1 className="text-4xl md:text-5xl font-orbitron font-bold glowing-text text-cyan-300">
-                    OSINT-слідчий
-                  </h1>
-                </div>
-                <p className="mt-2 text-cyan-100/70">
-                  Збір розвідданих з відкритих джерел за допомогою ШІ.
-                </p>
-              </header>
+      <div className="flex-1 lg:ml-72 transition-all duration-200 flex flex-col h-screen">
+          <header className="text-center p-4 bg-slate-900/70 backdrop-blur-xl border-b border-slate-700/50 z-20 flex-shrink-0">
+            <div className="flex items-center justify-between gap-4 max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+              <button 
+                  onClick={() => setIsHistoryOpen(true)} 
+                  className="p-2 rounded-md text-slate-400 hover:text-blue-400 hover:bg-slate-700/60 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 lg:hidden"
+                  aria-label="Відкрити історію"
+                >
+                    <HistoryIcon className="w-7 h-7"/>
+              </button>
+              <div className='flex items-center justify-center gap-4'>
+                <LogoIcon className="w-9 h-9 text-blue-500" />
+                <h1 className="text-3xl md:text-4xl font-['Inter'] font-bold text-slate-100 bg-clip-text text-transparent bg-gradient-to-br from-slate-100 to-slate-400">
+                  DeepSerch
+                </h1>
+              </div>
+               <button 
+                  onClick={startNewAnalysis}
+                  className="p-2 rounded-md text-slate-400 hover:text-blue-400 hover:bg-slate-700/60 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Почати новий аналіз"
+                  title="Почати новий аналіз"
+                >
+                    <PlusCircleIcon className="w-7 h-7"/>
+              </button>
+            </div>
+          </header>
 
-              <main>
-                {error && <ErrorDisplay message={error} onClose={() => setError(null)} />}
-
-                {!isLoading && (
-                  <>
-                    {investigationPath.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 mb-4 animate-fade-in">
-                          {investigationPath.map((item, index) => (
-                              <React.Fragment key={index}>
-                                  {index > 0 && <span className="text-cyan-400 text-lg">/</span>}
-                                  <div className={`px-3 py-1 rounded-md text-sm transition-colors ${index === investigationPath.length - 1 ? 'bg-cyan-400 text-black font-bold' : 'bg-cyan-500/10 text-cyan-300'}`}>
-                                      <span className="font-bold mr-1">{index === 0 ? 'Ціль:' : 'Лід:'}</span>
-                                      <span>{item}</span>
-                                  </div>
-                              </React.Fragment>
-                          ))}
-                      </div>
-                    )}
-                    <SearchInput onSearch={(newQuery) => handleSearch(newQuery, true)} isLoading={isLoading} query={query} setQuery={setQuery} />
-                  </>
+          <div className="flex-1 flex overflow-hidden">
+            {/* Chat Column */}
+            <main className="flex-1 w-1/2 overflow-y-auto p-4 sm:p-6 border-r border-slate-700/50">
+              <ChatInterface messages={messages} onSelectMessage={handleSelectMessage} selectedMessageId={selectedMessageId} />
+            </main>
+            
+            {/* Analysis Column */}
+            <aside className="w-1/2 h-full overflow-y-auto p-4 sm:p-6 bg-slate-900/30">
+                {selectedAnalysis ? (
+                    <BotResponse
+                        results={selectedAnalysis.results}
+                        sources={selectedAnalysis.sources}
+                        target={selectedAnalysis.target}
+                        investigationPath={selectedAnalysis.investigationPath}
+                        onSearch={handleSearch}
+                        onNodeClick={handleNodeClick}
+                        highlightedItem={highlightedItem}
+                    />
+                ) : (
+                    <WelcomeScreen />
                 )}
-
-                {isLoading && <LoadingIndicator />}
-
-                {!isLoading && !results && !error && (
-                  <div className="mt-12 text-center text-gray-500">
-                      <p>Введіть ціль (наприклад, ім'я користувача, email, домен), щоб почати розслідування.</p>
-                      <p className="text-sm mt-2">Результати будуть відображені тут.</p>
-                  </div>
-                )}
-
-                {!isLoading && results && (
-                  <div className="mt-8">
-                    <RelationshipGraph target={investigationPath[investigationPath.length - 1]} results={results} />
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <FilterControls 
-                        filters={generateFilters(results)}
-                        activeFilter={activeFilter}
-                      />
-                      <ExportButton 
-                        results={results} 
-                        sources={sources} 
-                        target={investigationPath[investigationPath.length - 1]}
-                      />
-                    </div>
-                    <ResultsDisplay results={results} sources={sources} activeFilter={activeFilter} onSearch={handleSearch} />
-                  </div>
-                )}
-              </main>
+            </aside>
           </div>
-        </div>
+          
+          <footer className="p-4 sm:p-6 pt-0 flex-shrink-0 border-t border-slate-700/50 bg-slate-900/70 backdrop-blur-xl z-10">
+            <div className="max-w-full mx-auto">
+                <ChatInput onSearch={handleSearch} isLoading={isLoading} />
+                 {error && <ErrorDisplay message={error} onClose={() => setError(null)} />}
+            </div>
+          </footer>
       </div>
     </div>
   );

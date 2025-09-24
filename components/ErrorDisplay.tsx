@@ -15,11 +15,11 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message, onClose }) 
       aria-labelledby="error-title"
       aria-describedby="error-description"
     >
-      <div className="glass-card rounded-lg p-6 md:p-8 max-w-md w-full m-4 border-2 border-red-500/50 glowing-border shadow-red-500/20">
+      <div className="bg-slate-800/60 backdrop-blur-xl border-slate-700/50 rounded-lg p-6 md:p-8 max-w-md w-full m-4 border-2 border-red-500/50 shadow-red-500/20">
         <div className="flex flex-col items-center text-center">
           <ExclamationTriangleIcon className="w-16 h-16 text-red-400 mb-4" />
-          <h2 id="error-title" className="text-2xl font-orbitron text-red-300 glowing-text">
-            Помилка розслідування
+          <h2 id="error-title" className="text-2xl font-['Inter'] text-red-300">
+            Помилка аналізу
           </h2>
           <p id="error-description" className="mt-2 text-red-100/90">
             {message}

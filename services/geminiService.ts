@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import type { OSINTResult, GroundingChunk } from '../types';
+import type { OSINTResult, GroundingChunk, GeminiContent } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable is not set.");
@@ -7,31 +7,26 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export async function investigateTarget(target: string): Promise<{ data: OSINTResult; sources: GroundingChunk[] } | null> {
-    const prompt = `
+export async function getConversationalAnalysis(
+    newQuery: string,
+    history: GeminiContent[]
+): Promise<{ data: OSINTResult; sources: GroundingChunk[], fullResponse: string } | null> {
+    const systemInstruction = `
         ВАЖЛИВО: Весь ваш аналіз та весь текстовий вміст у значеннях JSON (наприклад, 'summary', 'compromised_data', 'snippet' тощо) ПОВИНЕН бути українською мовою. Ключі JSON повинні залишатися англійською мовою, як зазначено в структурі.
 
-        Ви — елітний OSINT-аналітик. Ваше завдання — провести глибоке, багатогранне розслідування щодо цілі: "${target}".
+        Ви — потужний аналітичний інструмент DeepSerch. Ваше завдання — провести глибокий, багатогранний аналіз цілі, враховуючи історію нашого діалогу для контексту.
 
         КРОК 1: ЗБІР ДАНИХ
-        Проведіть ретельний пошук у всіх доступних вам джерелах: соціальні мережі, витоки даних, форуми, реєстри, злиті документи, кеш пошукових систем. Зберіть всю можливу інформацію за категоріями, вказаними в JSON-структурі нижче.
-        - Для 'Data Breaches': надайте вичерпний список ВСІХ типів скомпрометованих даних. Наприклад: ["email", "password (hashed)", "IP address"].
-        - Для 'Forum Mentions': надайте максимально інформативний та контекстуально багатий уривок з повідомлення.
-        - Для 'Social Profiles': якщо інформація є загальнодоступною, включіть біографію користувача ('bio') та кількість підписників ('followers').
+        Проведіть ретельний пошук у всіх доступних вам джерелах: соціальні мережі, **державні та комерційні реєстри**, **бази даних**, витоки даних, форуми, злиті документи, кеш пошукових систем та **публічну активність в Telegram**. Зберіть всю можливу інформацію за категоріями, вказаними в JSON-структурі нижче.
+        - Для 'telegram_activity': шукайте пов'язані з ціллю профілі, канали або групи. Вкажіть тип ('user', 'channel', 'group', 'unknown'), username, URL та опис, якщо є.
 
         КРОК 2: АНАЛІЗ ТА СИНТЕЗ (НАЙВАЖЛИВІШИЙ)
-        Після збору даних, проаналізуйте їх на наявність зв'язків. Ваша мета — ідентифікувати ймовірних осіб або "цифрові персони".
-        - Створіть об'єкти в масиві 'associated_entities'. Кожен об'єкт — це одна особа.
-        - Згрупуйте в об'єкті всі дані, що належать цій особі: email, телефони, профілі в соцмережах, домени.
-        - Для кожного об'єкта в 'associated_entities', заповніть масив 'sources'. Це КЛЮЧОВИЙ елемент. Кожен рядок у цьому масиві має бути чітким обґрунтуванням, ЧОМУ ви вважаєте, що ці дані пов'язані.
-        - Приклад хорошого обґрунтування в 'sources':
-            - "Email 'user@example.com' та нікнейм 'user123' були знайдені разом у витоці даних 'BigBreach 2021'."
-            - "Профіль LinkedIn 'linkedin.com/in/username' містить посилання на особистий сайт 'user-domain.com'."
-            - "Номер телефону '+1234567890' був вказаний у публічному повідомленні на форумі 'ForumName' користувачем 'user123'."
-        - Будьте максимально конкретними у своїх обґрунтуваннях.
+        Проаналізуйте ВСІ дані (нові та з попередніх повідомлень) на наявність зв'язків. Ваша мета — ідентифікувати ймовірних осіб або "цифрові персони" і збагатити їхній профіль.
+        - Оновіть та доповніть масив 'associated_entities' на основі нових знахідок.
+        - Будьте максимально конкретними у своїх обґрунтуваннях в полі 'sources' кожного 'associated_entity'.
 
         КРОК 3: ФОРМАТУВАННЯ
-        Відформатуйте всю свою відповідь як єдиний, валідний JSON-об'єкт. Не додавайте жодного тексту до або після JSON.
+        Відформатуйте всю свою відповідь як єдиний, валідний JSON-об'єкт. Не додавайте жодного тексту до або після JSON. Якщо попередній аналіз вже існує в історії, ви повинні повернути ОНОВЛЕНИЙ та ПОВНИЙ JSON-об'єкт, що містить як стару, так і нову інформацію.
         JSON-об'єкт повинен суворо відповідати такій структурі:
         {
           "summary": "string",
@@ -52,17 +47,21 @@ export async function investigateTarget(target: string): Promise<{ data: OSINTRe
           "leaked_documents": [{ "source": "string", "url": "string", "snippet": "string" }],
           "registry_mentions": [{ "registry_name": "string", "record_details": "string", "url": "string" }],
           "phone_info": [{ "number": "string", "associated_names": ["string"] }],
-          "web_mentions": [{ "title": "string", "url": "string", "snippet": "string" }]
+          "web_mentions": [{ "title": "string", "url": "string", "snippet": "string" }],
+          "telegram_activity": [{ "type": "channel' | 'group' | 'user' | 'unknown", "username": "string", "url": "string", "description": "string" }]
         }
 
         Якщо ви не можете знайти інформацію для певного поля, поверніть порожній рядок (""), порожній масив ([]), або null. Не пропускайте жодних ключів.
     `;
 
+    const contents = [...history, { role: 'user', parts: [{ text: newQuery }] }];
+
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: prompt,
+            contents: contents,
             config: {
+                systemInstruction: systemInstruction,
                 tools: [{ googleSearch: {} }],
                 temperature: 0.1,
             },
@@ -88,10 +87,10 @@ export async function investigateTarget(target: string): Promise<{ data: OSINTRe
         
         const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] || [];
 
-        return { data: jsonData, sources };
+        return { data: jsonData, sources, fullResponse: jsonString };
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        throw new Error("Failed to communicate with the investigation service.");
+        throw new Error("Failed to communicate with the analysis service.");
     }
 }

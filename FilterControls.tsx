@@ -23,14 +23,14 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeF
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-lg mb-4">
+    <div className="flex flex-wrap items-center gap-2 p-3 glass-card rounded-lg mb-4">
       <a
         href="#all"
         onClick={(e) => handleFilterClick(e, 'all')}
-        className={`cursor-pointer px-4 py-1.5 text-sm font-bold rounded-md transition-all duration-200 ease-in-out ${
+        className={`cursor-pointer px-4 py-1.5 text-sm font-bold rounded-md transition-all duration-300 ease-in-out ${
           activeFilter === 'all'
-            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/10 transform scale-105'
-            : 'bg-slate-700 text-slate-300 hover:bg-slate-600/80 transform hover:scale-105'
+            ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 transform scale-105'
+            : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transform hover:scale-105'
         }`}
       >
         Всі
@@ -40,15 +40,15 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, activeF
           key={filter.key}
           href={`#${filter.key}`}
           onClick={(e) => handleFilterClick(e, filter.key)}
-          className={`cursor-pointer px-4 py-1.5 text-sm font-bold rounded-md transition-all duration-200 ease-in-out flex items-center gap-2 ${
+          className={`cursor-pointer px-4 py-1.5 text-sm font-bold rounded-md transition-all duration-300 ease-in-out flex items-center gap-2 ${
             activeFilter === filter.key
-            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/10 transform scale-105'
-            : 'bg-slate-700 text-slate-300 hover:bg-slate-600/80 transform hover:scale-105'
+              ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 transform scale-105'
+              : 'bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transform hover:scale-105'
           }`}
         >
           <span>{filter.label}</span>
           <span className={`text-xs rounded-full px-2 py-0.5 ${
-             activeFilter === filter.key ? 'bg-black/20 text-blue-100' : 'bg-slate-800/80 text-slate-200'
+             activeFilter === filter.key ? 'bg-black/20 text-white' : 'bg-black/30 text-cyan-200'
           }`}>{filter.count}</span>
         </a>
       ))}

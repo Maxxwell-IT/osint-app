@@ -1,5 +1,5 @@
 {
-  "name": "OSINT-app",
-  "description": "Інструмент OSINT збору та аналізу загальнодоступної інформації про ціль за допомогою LLM Dolhopiatov prod.",
+  "name": "DeepSerch",
+  "description": "Інструмент для глибокого збору та аналізу загальнодоступної інформації.",
   "requestFramePermissions": []
 }

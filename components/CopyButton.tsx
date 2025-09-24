@@ -21,13 +21,13 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ textToCopy }) => {
   return (
     <button
       onClick={handleCopy}
-      className="p-1.5 rounded-md hover:bg-cyan-500/20 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+      className="p-1.5 rounded-md hover:bg-slate-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
       aria-label="Copy to clipboard"
     >
       {isCopied ? (
         <CheckIcon className="w-5 h-5 text-green-400" />
       ) : (
-        <ClipboardIcon className="w-5 h-5 text-cyan-300/70 transition-transform duration-200 ease-in-out group-hover:scale-125" />
+        <ClipboardIcon className="w-5 h-5 text-slate-400 transition-transform duration-200 ease-in-out group-hover:scale-125" />
       )}
     </button>
   );

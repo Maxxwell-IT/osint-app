@@ -12,7 +12,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({ results, sources, ta
   const handleExport = () => {
     // Sanitize the target for a valid filename
     const sanitizedTarget = target.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const filename = `OSINT-следчий_report_${sanitizedTarget || 'export'}.json`;
+    const filename = `DeepSerch_report_${sanitizedTarget || 'export'}.json`;
 
     const dataToExport = {
       investigationTarget: target,
@@ -36,7 +36,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({ results, sources, ta
   return (
     <button
       onClick={handleExport}
-      className="flex-shrink-0 flex items-center gap-2 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 px-4 py-2 text-sm font-bold rounded-md transition-colors duration-200"
+      className="flex-shrink-0 flex items-center gap-2 bg-slate-700 text-slate-300 hover:bg-slate-600 px-4 py-2 text-sm font-bold rounded-md transition-colors duration-200"
       title="Експортувати результати у JSON"
     >
       <DownloadIcon className="w-5 h-5" />

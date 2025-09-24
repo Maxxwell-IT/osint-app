@@ -1,3 +1,6 @@
+
+import type React from 'react';
+
 export interface SocialProfile {
   platform: string;
   url: string;
@@ -50,6 +53,13 @@ export interface AssociatedEntity {
     sources: string[]; // Textual explanations from AI on why data is linked
 }
 
+export interface TelegramActivity {
+    type: 'channel' | 'group' | 'user' | 'unknown';
+    username: string;
+    url: string;
+    description?: string;
+}
+
 export interface OSINTResult {
   summary: string;
   full_name?: string;
@@ -63,6 +73,7 @@ export interface OSINTResult {
   leaked_documents: LeakedDocument[];
   registry_mentions: RegistryMention[];
   phone_info: PhoneInfo[];
+  telegram_activity: TelegramActivity[];
 }
 
 export interface GroundingChunk {
@@ -79,4 +90,23 @@ export interface HistoryEntry {
   investigationPath: string[];
   results: OSINTResult;
   sources: GroundingChunk[];
+}
+
+export type GeminiContent = {
+    role: "user" | "model";
+    parts: { text: string }[];
+};
+
+export interface AnalysisData {
+    results: OSINTResult;
+    sources: GroundingChunk[];
+    target: string;
+    investigationPath: string[];
+}
+
+export interface ChatMessage {
+  id: number;
+  sender: 'user' | 'bot';
+  content: React.ReactNode;
+  analysisData?: AnalysisData;
 }
