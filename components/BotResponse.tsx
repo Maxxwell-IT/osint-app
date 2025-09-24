@@ -7,6 +7,7 @@ import { ExportButton } from './ExportButton';
 import { ResultsDisplay } from './ResultsDisplay';
 import { TelegramShareButton } from './TelegramShareButton';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
+import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 
 interface BotResponseProps {
     results: OSINTResult;
@@ -16,9 +17,10 @@ interface BotResponseProps {
     onSearch: (query: string) => void;
     onNodeClick: (key: string, text: string) => void;
     highlightedItem: { key: string; text: string } | null;
+    onBack: () => void;
 }
 
-export const BotResponse: React.FC<BotResponseProps> = ({ results, sources, target, investigationPath, onSearch, onNodeClick, highlightedItem }) => {
+export const BotResponse: React.FC<BotResponseProps> = ({ results, sources, target, investigationPath, onSearch, onNodeClick, highlightedItem, onBack }) => {
     const [activeFilter, setActiveFilter] = useState('all');
 
     const generateFilters = (data: OSINTResult): FilterOption[] => {
@@ -39,6 +41,15 @@ export const BotResponse: React.FC<BotResponseProps> = ({ results, sources, targ
     
     return (
         <div className="space-y-6">
+            <button 
+                onClick={onBack}
+                className="lg:hidden flex items-center gap-2 text-slate-300 hover:text-blue-400 font-semibold mb-2 p-2 -ml-2 rounded-md transition-colors hover:bg-slate-700/50"
+                aria-label="Назад до чату"
+            >
+                <ChevronLeftIcon className="w-5 h-5" />
+                <span>Назад до чату</span>
+            </button>
+
             <div className="flex flex-wrap items-center gap-2 animate-fade-in-up" style={{ animationDelay: '0ms' }}>
                 {investigationPath.map((item, index) => (
                     <React.Fragment key={index}>

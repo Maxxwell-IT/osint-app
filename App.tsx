@@ -34,6 +34,7 @@ const App: React.FC = () => {
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisData | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [highlightedItem, setHighlightedItem] = useState<{ key: string; text: string } | null>(null);
+  const [isAnalysisVisible, setIsAnalysisVisible] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -55,6 +56,7 @@ const App: React.FC = () => {
     setSelectedAnalysis(null);
     setSelectedMessageId(null);
     setHighlightedItem(null);
+    setIsAnalysisVisible(false);
     setMessages([
         { 
             id: Date.now(), 
@@ -119,6 +121,7 @@ const App: React.FC = () => {
         setMessages(prev => [...prev.slice(0, -1), resultsMessage]);
         setSelectedAnalysis(analysisData);
         setSelectedMessageId(resultsMessage.id);
+        setIsAnalysisVisible(true);
 
         setConversationHistory(newConversation);
 
@@ -192,6 +195,7 @@ const App: React.FC = () => {
     setSelectedAnalysis(analysisData);
     setSelectedMessageId(botMessage.id);
     setIsHistoryOpen(false);
+    setIsAnalysisVisible(true);
   };
   
   const handleSelectMessage = (message: ChatMessage) => {
@@ -199,6 +203,7 @@ const App: React.FC = () => {
         setSelectedAnalysis(message.analysisData);
         setSelectedMessageId(message.id);
         setHighlightedItem(null);
+        setIsAnalysisVisible(true);
     }
   }
 
@@ -252,12 +257,12 @@ const App: React.FC = () => {
 
           <div className="flex-1 flex overflow-hidden">
             {/* Chat Column */}
-            <main className="flex-1 w-1/2 overflow-y-auto p-4 sm:p-6 border-r border-slate-700/50">
+            <main className={`w-full lg:w-1/2 overflow-y-auto p-4 sm:p-6 lg:border-r border-slate-700/50 ${isAnalysisVisible && selectedAnalysis ? 'hidden lg:block' : 'block'}`}>
               <ChatInterface messages={messages} onSelectMessage={handleSelectMessage} selectedMessageId={selectedMessageId} />
             </main>
             
             {/* Analysis Column */}
-            <aside className="w-1/2 h-full overflow-y-auto p-4 sm:p-6 bg-slate-900/30">
+            <aside className={`w-full lg:w-1/2 h-full overflow-y-auto p-4 sm:p-6 bg-slate-900/30 ${isAnalysisVisible && selectedAnalysis ? 'block' : 'hidden lg:block'}`}>
                 {selectedAnalysis ? (
                     <BotResponse
                         results={selectedAnalysis.results}
@@ -267,6 +272,7 @@ const App: React.FC = () => {
                         onSearch={handleSearch}
                         onNodeClick={handleNodeClick}
                         highlightedItem={highlightedItem}
+                        onBack={() => setIsAnalysisVisible(false)}
                     />
                 ) : (
                     <WelcomeScreen />
