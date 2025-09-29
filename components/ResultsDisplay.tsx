@@ -32,7 +32,7 @@ interface ResultsDisplayProps {
 }
 
 const ActionButtons: React.FC<{ text: string; onSearch: (text: string) => void; className?: string }> = ({ text, onSearch, className }) => (
-    <div className={`flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${className ?? ''}`}>
+    <div className={`flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300 ease-in-out ${className ?? ''}`}>
         <CopyButton textToCopy={text} />
         <button
             onClick={(e) => {
@@ -190,7 +190,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as AssociatedEntity[]).map((entity, index) => {
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === entity.name;
                             const refKey = `${key}-${entity.name}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={entity.name} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{entity.sources?.join('; ')}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -199,7 +198,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === profile.username;
                             const refKey = `${key}-${profile.username}`;
                             return (
-// FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                              <li key={index} ref={(el) => { itemRefs.current[refKey] = el; }} className={`group flex items-center justify-between gap-4 p-3 bg-slate-800/50 rounded-md transition-all duration-300 hover:bg-slate-700/50 ${isHighlighted ? 'ring-2 ring-blue-400 shadow-lg shadow-blue-500/20 scale-[1.02]' : ''}`}>
                                 <div className="flex items-center gap-3 min-w-0">
                                     {getPlatformIcon(profile.platform)}
@@ -232,7 +230,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                                     { (data as DataBreach[]).map((breach, index) => {
                                         const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === breach.name;
                                         const refKey = `${key}-${breach.name}`;
-                                        // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                                         return <ActionableItem key={index} text={breach.name} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{breach.compromised_data.join(', ')}</ActionableItem>
                                     }) }
                                 </ul>
@@ -243,7 +240,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as ForumMention[]).map((mention, index) => {
                              const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === mention.forum_name;
                              const refKey = `${key}-${mention.forum_name}`;
-                             // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                              return <ActionableItem key={index} text={mention.forum_name} url={mention.url} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{mention.post_snippet}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -251,7 +247,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as LeakedDocument[]).map((doc, index) => {
                              const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === doc.source;
                              const refKey = `${key}-${doc.source}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={doc.source} url={doc.url} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{doc.snippet}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -259,7 +254,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as RegistryMention[]).map((mention, index) => {
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === mention.registry_name;
                             const refKey = `${key}-${mention.registry_name}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={mention.registry_name} url={mention.url} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{mention.record_details}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -267,7 +261,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as PhoneInfo[]).map((info, index) => {
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === info.number;
                             const refKey = `${key}-${info.number}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={info.number} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{info.associated_names.join(', ')}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -275,7 +268,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as WebMention[]).map((mention, index) => {
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === mention.title;
                             const refKey = `${key}-${mention.title}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={mention.title} url={mention.url} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{mention.snippet}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -283,7 +275,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as TelegramActivity[]).map((activity, index) => {
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === activity.username;
                             const refKey = `${key}-${activity.username}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={activity.username} url={activity.url} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }}>{activity.description}</ActionableItem>
                         }) }</ul>;
                         break;
@@ -296,7 +287,6 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, sources
                         content = <ul className="space-y-2">{ (data as string[]).map((item, index) => {
                             const isHighlighted = highlightedItem?.key === key && highlightedItem?.text === item;
                             const refKey = `${key}-${item}`;
-                            // FIX: The ref callback should not return a value. Changed from `(el) => (itemRefs.current[refKey] = el)` to a block statement.
                             return <ActionableItem key={index} text={item} onSearch={onSearch} isHighlighted={isHighlighted} itemRef={(el) => { itemRefs.current[refKey] = el; }} />
                         }) }</ul>;
                         break;

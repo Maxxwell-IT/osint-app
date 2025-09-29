@@ -1,12 +1,15 @@
+
 import React, { useState } from 'react';
 import { SendIcon } from './icons/SendIcon';
+import { AdjustmentsIcon } from './icons/AdjustmentsIcon';
 
 interface ChatInputProps {
   onSearch: (query: string) => void;
   isLoading: boolean;
+  onAdvancedSearchClick: () => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSearch, isLoading }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSearch, isLoading, onAdvancedSearchClick }) => {
   const [query, setQuery] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -19,6 +22,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSearch, isLoading }) => 
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2 md:gap-4 items-center bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 p-2 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/80 transition-shadow duration-200">
+       <button
+        type="button"
+        onClick={onAdvancedSearchClick}
+        disabled={isLoading}
+        className="p-3 text-slate-400 hover:text-blue-400 hover:bg-slate-700/60 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Розширений пошук"
+        title="Розширений пошук"
+      >
+        <AdjustmentsIcon className="w-6 h-6" />
+      </button>
       <input
         type="text"
         value={query}

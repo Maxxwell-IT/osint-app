@@ -11,6 +11,7 @@ import { HistoryIcon } from './components/icons/HistoryIcon';
 import { BotResponse } from './components/BotResponse';
 import { ChatInterface } from './components/ChatInterface';
 import { PlusCircleIcon } from './components/icons/PlusCircleIcon';
+import { AdvancedSearchModal } from './components/AdvancedSearchModal';
 
 const WelcomeScreen: React.FC = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [highlightedItem, setHighlightedItem] = useState<{ key: string; text: string } | null>(null);
   const [isAnalysisVisible, setIsAnalysisVisible] = useState<boolean>(false);
+  const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -218,6 +220,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAdvancedSearch = (query: string) => {
+    handleSearch(query);
+    setIsAdvancedSearchOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-transparent flex">
        <HistorySidebar 
@@ -227,6 +234,13 @@ const App: React.FC = () => {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
       />
+
+       {isAdvancedSearchOpen && (
+        <AdvancedSearchModal
+          onClose={() => setIsAdvancedSearchOpen(false)}
+          onSearch={handleAdvancedSearch}
+        />
+      )}
 
       <div className="flex-1 lg:ml-72 transition-all duration-200 flex flex-col h-screen">
           <header className="text-center p-4 bg-slate-900/70 backdrop-blur-xl border-b border-slate-700/50 z-20 flex-shrink-0">
@@ -282,7 +296,11 @@ const App: React.FC = () => {
           
           <footer className="p-4 sm:p-6 pt-0 flex-shrink-0 border-t border-slate-700/50 bg-slate-900/70 backdrop-blur-xl z-10">
             <div className="max-w-full mx-auto">
-                <ChatInput onSearch={handleSearch} isLoading={isLoading} />
+                <ChatInput 
+                    onSearch={handleSearch} 
+                    isLoading={isLoading} 
+                    onAdvancedSearchClick={() => setIsAdvancedSearchOpen(true)}
+                />
                  {error && <ErrorDisplay message={error} onClose={() => setError(null)} />}
             </div>
           </footer>

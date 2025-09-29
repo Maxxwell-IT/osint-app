@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { HistoryEntry } from '../types';
 import { HistoryIcon } from './icons/HistoryIcon';
